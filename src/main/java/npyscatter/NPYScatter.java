@@ -55,7 +55,7 @@ public class NPYScatter {
 					1024
 			);
 			if(arr_color.getShape().length == 1) {
-				colorData = new NumpyArray(arr_color.asDoubleArray(), new int[]{data.shape[0], 1});
+				colorData = new NumpyArray(NumpyArray.to_double(arr_color.getData()), new int[]{data.shape[0], 1});
 			} else {
 				colorData = new NumpyArray(arr_color);
 			}
@@ -66,9 +66,13 @@ public class NPYScatter {
 			int cidx = color_idx.isEmpty() ? 0:Integer.parseInt(color_idx.get().split("=")[1]);
 			double min = colorData.min(null,cidx);
 			double max = colorData.max(null,cidx);
-			
-			colorValues = Arrays.stream(colorData.slice1D(null,cidx))
-				.map(v->(v-min)/(max-min)).toArray();
+			if(min == -1) {
+				colorValues = Arrays.stream(colorData.slice1D(null,cidx))
+						.map(v->(v)/(max)).toArray();
+			} else {
+				colorValues = Arrays.stream(colorData.slice1D(null,cidx))
+						.map(v->(v-min)/(max-min)).toArray();
+			}
 		} else {
 			colorValues = null;
 		}
@@ -82,7 +86,8 @@ public class NPYScatter {
 			scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
 				@Override
 				public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
-					return DefaultColorMap.S_TURBO.interpolate(colorValues[pointIdx]);
+					double v = colorValues[pointIdx];
+					return v < 0 ? 0x33ff00ff : DefaultColorMap.S_TURBO.interpolate(v);
 				}
 			});
 		}
@@ -91,7 +96,7 @@ public class NPYScatter {
 		if(pointsize.isPresent()) {
 			scatter.getContent().points.setGlyphScaling(Double.parseDouble(pointsize.get().split("=")[1]));
 		}
-		scatter.addRectangularPointSetSelector(new KeyMaskListener(KeyEvent.VK_CONTROL));
+		scatter.addRectangularPointSetSelector(new KeyMaskListener(KeyEvent.VK_SHIFT));
 		scatter.addPointSetSelectionListener(new ScatterPlot.PointSetSelectionListener() {
 			
 			@Override
@@ -104,6 +109,8 @@ public class NPYScatter {
 				);
 			}
 		});
+		scatter.addScrollZoom();
+		scatter.addPanning();
 		
 		JFrame frame = createJFrameWithBoilerPlate("Numpy Array Scatter Plot");
 		frame.getContentPane().add(scatter.getCanvas().asComponent());

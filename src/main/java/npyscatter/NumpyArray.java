@@ -78,7 +78,7 @@ public class NumpyArray {
 			return Arrays.stream(slice1D(slice_coords)).max().getAsDouble();
 	}
 	
-	static double[] to_double(Object data) {
+	public static double[] to_double(Object data) {
 		if(data instanceof double[])
 			return (double[]) data;
 		else if(data instanceof float[]) {
