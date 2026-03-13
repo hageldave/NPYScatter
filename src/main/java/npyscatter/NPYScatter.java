@@ -25,6 +25,8 @@ import hageldave.jplotter.canvas.JPlotterCanvas;
 import hageldave.jplotter.charts.ScatterPlot;
 import hageldave.jplotter.color.DefaultColorMap;
 import hageldave.jplotter.interaction.kml.KeyMaskListener;
+import hageldave.jplotter.renderers.AdaptableView;
+import hageldave.jplotter.renderers.Renderer;
 import hageldave.jplotter.util.Pair;
 
 public class NPYScatter {
@@ -115,6 +117,13 @@ public class NPYScatter {
 		JFrame frame = createJFrameWithBoilerPlate("Numpy Array Scatter Plot");
 		frame.getContentPane().add(scatter.getCanvas().asComponent());
 		scatter.getCanvas().addCleanupOnWindowClosingListener(frame);
+		
+		if(findArg(args, "no_axes=true").isPresent()) {
+			Renderer content = scatter.getCoordsys().getContent();
+			scatter.getCanvas().setRenderer(content);
+			((AdaptableView)content).setView(scatter.getCoordsys().getCoordinateView());
+		}
+		
 		SwingUtilities.invokeLater(()->{
 			frame.pack();
 			frame.setVisible(true);
