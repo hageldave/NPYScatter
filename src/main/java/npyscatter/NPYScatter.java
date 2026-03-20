@@ -26,6 +26,8 @@ import hageldave.jplotter.charts.ScatterPlot;
 import hageldave.jplotter.color.DefaultColorMap;
 import hageldave.jplotter.interaction.kml.KeyMaskListener;
 import hageldave.jplotter.renderers.AdaptableView;
+import hageldave.jplotter.renderers.CompleteRenderer;
+import hageldave.jplotter.renderers.PointsRenderer;
 import hageldave.jplotter.renderers.Renderer;
 import hageldave.jplotter.util.Pair;
 
@@ -96,7 +98,15 @@ public class NPYScatter {
 		scatter.alignCoordsys(1.1);
 		Optional<String> pointsize = findArg(args, "point_size=");
 		if(pointsize.isPresent()) {
-			scatter.getContent().points.setGlyphScaling(Double.parseDouble(pointsize.get().split("=")[1]));
+			double s = Double.parseDouble(pointsize.get().split("=")[1]);
+			for(CompleteRenderer r : Arrays.asList(
+					scatter.getContent(), 
+					scatter.getContentLayer0(),
+					scatter.getContentLayer1(),
+					scatter.getContentLayer2()))
+			{
+				r.points.setGlyphScaling(s);
+			}
 		}
 		scatter.addRectangularPointSetSelector(new KeyMaskListener(KeyEvent.VK_SHIFT));
 		scatter.addPointSetSelectionListener(new ScatterPlot.PointSetSelectionListener() {
@@ -113,6 +123,17 @@ public class NPYScatter {
 		});
 		scatter.addScrollZoom();
 		scatter.addPanning();
+		
+		scatter.addPointSetSelectionListener(new ScatterPlot.PointSetSelectionListener() {
+			
+			@Override
+			public void onPointSetSelectionChanged(ArrayList<Pair<Integer, TreeSet<Integer>>> selectedPoints,
+					Shape selectionArea) {
+				int[][] selection = slectionToIndices(selectedPoints);
+				// TODO: implement file based IPC to send selected points to other applications, e.g. for brushing and linking
+			}
+		});
+		
 		
 		JFrame frame = createJFrameWithBoilerPlate("Numpy Array Scatter Plot");
 		frame.getContentPane().add(scatter.getCanvas().asComponent());
@@ -149,6 +170,12 @@ public class NPYScatter {
 		frame.setTitle(title);
 		frame.setMinimumSize(new Dimension(100, 100));
 		return frame;
+	}
+	
+	public static int[][] slectionToIndices(ArrayList<Pair<Integer, TreeSet<Integer>>> selectedPoints) {
+		return selectedPoints.stream()
+				.map(p->p.second.stream().map(i->new int[]{p.first, i}))
+				.toArray(int[][]::new);
 	}
 	
 	
