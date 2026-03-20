@@ -4,7 +4,11 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Shape;
 import java.awt.event.KeyEvent;
+import java.io.IOException;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
@@ -96,6 +100,9 @@ public class NPYScatter {
 			});
 		}
 		scatter.alignCoordsys(1.1);
+		Optional<String> ipc_file = findArg(args, "ipc_file=");
+		Path ipcFilePath = ipc_file.map(s -> FileSystems.getDefault().getPath(s.split("=")[1])).orElse(null);
+
 		Optional<String> pointsize = findArg(args, "point_size=");
 		if(pointsize.isPresent()) {
 			double s = Double.parseDouble(pointsize.get().split("=")[1]);
@@ -129,8 +136,17 @@ public class NPYScatter {
 			@Override
 			public void onPointSetSelectionChanged(ArrayList<Pair<Integer, TreeSet<Integer>>> selectedPoints,
 					Shape selectionArea) {
+				if (ipcFilePath == null) return;
 				int[][] selection = slectionToIndices(selectedPoints);
-				// TODO: implement file based IPC to send selected points to other applications, e.g. for brushing and linking
+				// flatten to 1D: extract the point index (second element) from each pair
+				int[] indices = Arrays.stream(selection)
+						.mapToInt(pair -> pair[1])
+						.toArray();
+				try {
+					writeSelectionToFile(ipcFilePath, indices);
+				} catch (IOException e) {
+					System.err.println("IPC write failed: " + e.getMessage());
+				}
 			}
 		});
 		
@@ -177,6 +193,21 @@ public class NPYScatter {
 				.map(p->p.second.stream().map(i->new int[]{p.first, i}))
 				.toArray(int[][]::new);
 	}
-	
-	
+
+	public static void writeSelectionToFile(Path ipcFile, int[] indices) throws IOException {
+		// Create a uniquely named temp file in the same directory as the target,
+		// so that the subsequent atomic move stays on the same filesystem.
+		Path dir = ipcFile.getParent() != null ? ipcFile.getParent() : ipcFile.toAbsolutePath().getParent();
+		Path tmp = Files.createTempFile(dir, "npyscatter_sel_", ".tmp");
+		try {
+			NpyFile.write(tmp, indices);
+			Files.move(tmp, ipcFile,
+				StandardCopyOption.REPLACE_EXISTING,
+				StandardCopyOption.ATOMIC_MOVE);
+		} finally {
+			// Clean up the temp file in case the move failed
+			Files.deleteIfExists(tmp);
+		}
+	}
+
 }
