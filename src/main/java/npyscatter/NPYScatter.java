@@ -11,7 +11,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
+import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -28,10 +30,11 @@ import hageldave.jplotter.canvas.FBOCanvas;
 import hageldave.jplotter.canvas.JPlotterCanvas;
 import hageldave.jplotter.charts.ScatterPlot;
 import hageldave.jplotter.color.DefaultColorMap;
+import hageldave.jplotter.interaction.SimpleSelectionModel;
+import hageldave.jplotter.interaction.SimpleSelectionModel.SimpleSelectionListener;
 import hageldave.jplotter.interaction.kml.KeyMaskListener;
 import hageldave.jplotter.renderers.AdaptableView;
 import hageldave.jplotter.renderers.CompleteRenderer;
-import hageldave.jplotter.renderers.PointsRenderer;
 import hageldave.jplotter.renderers.Renderer;
 import hageldave.jplotter.util.Pair;
 
@@ -115,41 +118,51 @@ public class NPYScatter {
 				r.points.setGlyphScaling(s);
 			}
 		}
+		SimpleSelectionModel<Pair<Integer, Integer>> selectionModel = new SimpleSelectionModel<Pair<Integer,Integer>>();
 		scatter.addRectangularPointSetSelector(new KeyMaskListener(KeyEvent.VK_SHIFT));
 		scatter.addPointSetSelectionListener(new ScatterPlot.PointSetSelectionListener() {
 			
 			@Override
 			public void onPointSetSelectionChanged(ArrayList<Pair<Integer, TreeSet<Integer>>> selectedPoints,
 					Shape selectionArea) {
-				scatter.highlight(
-						selectedPoints.stream()
-						.flatMap(p->p.second.stream().map(p_->Pair.of(p.first, p_)))
-						.collect(Collectors.toList())
-				);
+				List<Pair<Integer, Integer>> selection = selectedPoints.stream()
+				.flatMap(p->p.second.stream().map(p_->Pair.of(p.first, p_)))
+				.collect(Collectors.toList());
+				selectionModel.setSelection(selection);
 			}
 		});
 		scatter.addScrollZoom();
 		scatter.addPanning();
 		
-		scatter.addPointSetSelectionListener(new ScatterPlot.PointSetSelectionListener() {
-			
+		selectionModel.addSelectionListener(new SimpleSelectionListener<Pair<Integer,Integer>>() {
 			@Override
-			public void onPointSetSelectionChanged(ArrayList<Pair<Integer, TreeSet<Integer>>> selectedPoints,
-					Shape selectionArea) {
-				if (ipcFilePath == null) return;
-				int[][] selection = slectionToIndices(selectedPoints);
-				// flatten to 1D: extract the point index (second element) from each pair
-				int[] indices = Arrays.stream(selection)
-						.mapToInt(pair -> pair[1])
-						.toArray();
-				try {
-					writeSelectionToFile(ipcFilePath, indices);
-				} catch (IOException e) {
-					System.err.println("IPC write failed: " + e.getMessage());
-				}
+			public void selectionChanged(SortedSet<Pair<Integer, Integer>> selection) {
+				scatter.highlight(selection);
 			}
 		});
 		
+		// file based IPC stuff
+		if(ipcFilePath != null) {
+			selectionModel.addSelectionListener(new SimpleSelectionListener<Pair<Integer,Integer>>() {
+				@Override
+				public void selectionChanged(SortedSet<Pair<Integer, Integer>> selection) {
+					// flatten to 1D: extract the point index (second element) from each pair
+					int[] indices = selection.stream().mapToInt(pair -> pair.second).toArray();
+					try {
+						writeSelectionToFile(ipcFilePath, indices);
+					} catch (IOException e) {
+						System.err.println("IPC write failed: " + e.getMessage());
+					}
+				}
+			});
+			IPCFileWatcher watcher = new IPCFileWatcher(ipcFilePath);
+			watcher.listeners.add((int[] selection) -> {
+				selectionModel.setSelection(
+						Arrays.stream(selection).mapToObj(i->Pair.of(0, i)).collect(Collectors.toList())
+				);
+			});
+			watcher.start();
+		}
 		
 		JFrame frame = createJFrameWithBoilerPlate("Numpy Array Scatter Plot");
 		frame.getContentPane().add(scatter.getCanvas().asComponent());
