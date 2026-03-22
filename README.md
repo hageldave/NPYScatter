@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 Path ipcFile = Path.of("/tmp/selection.npy");
 WatchService watcher = FileSystems.getDefault().newWatchService();
-ipcFile.getParent().register(watcher, StandardWatchEventKinds.ENTRY_MODIFY);
+ipcFile.getParent().register(watcher, StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_CREATE);
 
 AtomicBoolean stopRequested = new AtomicBoolean(false);
 
@@ -56,8 +56,9 @@ watcher.close();
 ```
 
 > **Note:** `WatchService` watches the **parent directory** for changes, then
-> filters by filename. This is necessary because the atomic rename that
-> NPYScatter uses triggers a directory-level `ENTRY_MODIFY` event.
+> filters by filename. Both `ENTRY_CREATE` and `ENTRY_MODIFY` must be registered
+> because NPYScatter writes selections via an atomic rename (temp file → target):
+> this triggers an `ENTRY_CREATE` event on the target file, not `ENTRY_MODIFY`.
 >
 > `watcher.poll(timeout, unit)` is used instead of `watcher.take()` so that
 > the `stopRequested` condition is checked regularly even when no events arrive,
