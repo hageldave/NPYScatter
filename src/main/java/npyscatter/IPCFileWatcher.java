@@ -2,6 +2,7 @@ package npyscatter;
 
 import java.io.IOException;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
@@ -31,7 +32,6 @@ public class IPCFileWatcher extends Thread {
 			Path dir = ipcFile.getParent() != null ? ipcFile.getParent() : ipcFile.toAbsolutePath().getParent();
 			dir.register(watcher, StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_CREATE);
 
-			System.out.println("Watching for selection changes...");
 			while (!stopRequested.get()) {
 				WatchKey key = watcher.poll(10, TimeUnit.MILLISECONDS); // returns null on timeout
 				if (key == null) {
@@ -40,10 +40,12 @@ public class IPCFileWatcher extends Thread {
 				}
 				for (WatchEvent<?> event : key.pollEvents()) {
 					Path changed = (Path) event.context();
-					System.out.println(changed);
 					if (changed.equals(ipcFile.getFileName())) {
-						int[] indices = NpyFile.read(ipcFile, 1024).asIntArray();
-						System.out.println("Selection updated: " + indices.length + " points");
+						int[] indices = ipcFile.endsWith(".npy") 
+								? 
+								NpyFile.read(ipcFile, 1024).asIntArray() 
+								:
+								Files.readAllLines(ipcFile).stream().mapToInt(Integer::parseInt).toArray();
 						SwingUtilities.invokeLater(()->{notifyListeners(indices);});
 					}
 				}
