@@ -29,7 +29,7 @@ public class IPCFileWatcher extends Thread {
 	public void run() {
 		try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
 			Path dir = ipcFile.getParent() != null ? ipcFile.getParent() : ipcFile.toAbsolutePath().getParent();
-			dir.register(watcher, StandardWatchEventKinds.ENTRY_MODIFY);
+			dir.register(watcher, StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_CREATE);
 
 			System.out.println("Watching for selection changes...");
 			while (!stopRequested.get()) {
