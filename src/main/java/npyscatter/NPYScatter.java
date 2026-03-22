@@ -190,8 +190,12 @@ public class NPYScatter {
 	
 	public static int[][] slectionToIndices(ArrayList<Pair<Integer, TreeSet<Integer>>> selectedPoints) {
 		return selectedPoints.stream()
-				.map(p->p.second.stream().map(i->new int[]{p.first, i}))
+				.flatMap(p->p.second.stream().map(i->new int[]{p.first, i}))
 				.toArray(int[][]::new);
+	}
+	
+	public static void write(Path file, int[] arr) throws IOException {
+	  Files.write(file, Arrays.stream(arr).mapToObj(i->""+i).collect(Collectors.toList()));
 	}
 
 	public static void writeSelectionToFile(Path ipcFile, int[] indices) throws IOException {
@@ -200,7 +204,10 @@ public class NPYScatter {
 		Path dir = ipcFile.getParent() != null ? ipcFile.getParent() : ipcFile.toAbsolutePath().getParent();
 		Path tmp = Files.createTempFile(dir, "npyscatter_sel_", ".tmp");
 		try {
-			NpyFile.write(tmp, indices);
+		  if(ipcFile.endsWith(".npy"))
+			  NpyFile.write(tmp, indices);
+			else
+			  write(tmp, indices);
 			Files.move(tmp, ipcFile,
 				StandardCopyOption.REPLACE_EXISTING,
 				StandardCopyOption.ATOMIC_MOVE);
