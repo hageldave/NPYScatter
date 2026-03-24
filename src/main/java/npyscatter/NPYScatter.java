@@ -48,15 +48,12 @@ public class NPYScatter {
 			System.exit(1);
 		}
 		
-//		NpyArray arr = NpyFile.read(
-//				FileSystems.getDefault().getPath(
-//						"/home/david/git/aitchison/output/sensitivity/CALPHAD/projections/", 
-//						"PCA_dcls_30.npy"
-//				), 
-//				1024
-//		);
+		
 		NpyArray arr = NpyFile.read(FileSystems.getDefault().getPath(coords_file.get()), 1024);
 		NumpyArray data = new NumpyArray(arr);
+		
+		int x_idx = findArg(args, "x_idx=").map(Integer::parseInt).orElseGet(()->0);
+		int y_idx = findArg(args, "y_idx=").map(Integer::parseInt).orElseGet(()->1);
 		
 		NumpyArray colorData = null;
 		Optional<String> color_file = findArg(args, "color_values=");
@@ -92,13 +89,34 @@ public class NPYScatter {
 		scatter.getDataModel().addData(
 				IntStream.range(0, data.shape[0])
 				.mapToObj(i->data.slice1D(i,null))
-				.toArray(double[][]::new), 0, 1, "");
+				.toArray(double[][]::new), 
+				x_idx, 
+				y_idx, 
+				"");
+		
+		DefaultColorMap cmap;
+		Optional<String> cmapname = findArg(args, "cmap=");
+		if(cmapname.isPresent()) {
+			cmap = Arrays.stream(DefaultColorMap.values())
+			.filter(candidate -> candidate.name().contains(cmapname.get()))
+			.findFirst()
+			.orElse(null);
+			if(cmap == null) {
+				System.err.println("cmap " + cmapname.get() + " is unknown. Available names are:");
+				Arrays.stream(DefaultColorMap.values())
+				.map(DefaultColorMap::name)
+				.forEach(System.err::println);
+				System.exit(1);
+			}
+		} else {
+			cmap = DefaultColorMap.S_TURBO;
+		}
 		if(colorData != null){
 			scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
 				@Override
 				public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
 					double v = colorValues[pointIdx];
-					return v < 0 ? 0x33ff00ff : DefaultColorMap.S_TURBO.interpolate(v);
+					return v < 0 ? 0x33ff00ff : cmap.interpolate(v);
 				}
 			});
 		}
