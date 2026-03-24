@@ -12,7 +12,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -21,6 +20,12 @@ import java.util.stream.IntStream;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.jetbrains.bio.npy.NpyArray;
 import org.jetbrains.bio.npy.NpyFile;
 
@@ -41,25 +46,82 @@ import hageldave.jplotter.util.Pair;
 public class NPYScatter {
 	
 	public static void main(String[] args) {
-		System.out.println(Arrays.toString(args));
-		Optional<String> coords_file = findArg(args, ".npy");
-		if(coords_file.isEmpty() || coords_file.get().contains("color_values=")) {
-			System.err.println("missing *.npy file argument.");
+		// Define all options
+		Options options = new Options();
+		options.addOption(Option.builder("h").longOpt("help").desc("Print this help message and exit.").build());
+		options.addOption(Option.builder().longOpt("x-idx").hasArg().argName("N").desc("Column index for X axis (default: 0).").build());
+		options.addOption(Option.builder().longOpt("y-idx").hasArg().argName("N").desc("Column index for Y axis (default: 1).").build());
+		options.addOption(Option.builder().longOpt("color-values").hasArg().argName("path").desc("Path to .npy file with color values.").build());
+		options.addOption(Option.builder().longOpt("color-value-idx").hasArg().argName("N").desc("Column index in color-values array (default: 0).").build());
+		options.addOption(Option.builder().longOpt("cmap").hasArg().argName("name").desc("Color map name (default: S_TURBO).").build());
+		options.addOption(Option.builder().longOpt("ipc-file").hasArg().argName("path").desc("Path to IPC file for selection exchange.").build());
+		options.addOption(Option.builder().longOpt("point-size").hasArg().argName("N").desc("Point glyph scaling factor.").build());
+		options.addOption(Option.builder().longOpt("fallback").desc("Use JPlotter fallback canvas.").build());
+		options.addOption(Option.builder().longOpt("no-axes").desc("Hide coordinate axes.").build());
+
+		HelpFormatter formatter = new HelpFormatter();
+		CommandLine cmd;
+		try {
+			cmd = new DefaultParser().parse(options, args);
+		} catch (ParseException e) {
+			System.err.println("Error: " + e.getMessage());
+			formatter.printHelp("npyscatter <coords.npy> [options]", options);
+			System.exit(1);
+			return;
+		}
+
+		if (cmd.hasOption("help")) {
+			formatter.printHelp("npyscatter <coords.npy> [options]", options);
+			System.exit(0);
+		}
+
+		String[] positional = cmd.getArgs();
+		if (positional.length == 0) {
+			System.err.println("Error: missing required positional argument <coords.npy>");
+			formatter.printHelp("npyscatter <coords.npy> [options]", options);
 			System.exit(1);
 		}
-		
-		
-		NpyArray arr = NpyFile.read(FileSystems.getDefault().getPath(coords_file.get()), 1024);
+		String coordsFile = positional[0];
+
+		int x_idx;
+		int y_idx;
+		int colorValueIdx;
+		try {
+			x_idx = Integer.parseInt(cmd.getOptionValue("x-idx", "0"));
+			y_idx = Integer.parseInt(cmd.getOptionValue("y-idx", "1"));
+			colorValueIdx = Integer.parseInt(cmd.getOptionValue("color-value-idx", "0"));
+		} catch (NumberFormatException e) {
+			System.err.println("Error: --x-idx, --y-idx, and --color-value-idx must be integers. " + e.getMessage());
+			formatter.printHelp("npyscatter <coords.npy> [options]", options);
+			System.exit(1);
+			return;
+		}
+		String colorValuesPath = cmd.getOptionValue("color-values");
+		String cmapName = cmd.getOptionValue("cmap", "S_TURBO");
+		String ipcFilePath = cmd.getOptionValue("ipc-file");
+		String pointSizeStr = cmd.getOptionValue("point-size");
+		boolean fallback = cmd.hasOption("fallback");
+		boolean noAxes = cmd.hasOption("no-axes");
+
+		// Print parsed arguments
+		System.out.println("coords file : " + coordsFile);
+		System.out.println("x-idx       : " + x_idx);
+		System.out.println("y-idx       : " + y_idx);
+		System.out.println("color-values: " + colorValuesPath);
+		System.out.println("color-val-idx: " + colorValueIdx);
+		System.out.println("cmap        : " + cmapName);
+		System.out.println("ipc-file    : " + ipcFilePath);
+		System.out.println("point-size  : " + pointSizeStr);
+		System.out.println("fallback    : " + fallback);
+		System.out.println("no-axes     : " + noAxes);
+
+		NpyArray arr = NpyFile.read(FileSystems.getDefault().getPath(coordsFile), 1024);
 		NumpyArray data = new NumpyArray(arr);
 		
-		int x_idx = findArg(args, "x_idx=").map(Integer::parseInt).orElseGet(()->0);
-		int y_idx = findArg(args, "y_idx=").map(Integer::parseInt).orElseGet(()->1);
-		
 		NumpyArray colorData = null;
-		Optional<String> color_file = findArg(args, "color_values=");
-		if(color_file.isPresent()) {
+		if (colorValuesPath != null) {
 			NpyArray arr_color = NpyFile.read(
-					FileSystems.getDefault().getPath(color_file.get().split("=")[1]),
+					FileSystems.getDefault().getPath(colorValuesPath),
 					1024
 			);
 			if(arr_color.getShape().length == 1) {
@@ -70,8 +132,7 @@ public class NPYScatter {
 		}
 		double[] colorValues;
 		if(colorData != null) {
-			Optional<String> color_idx = findArg(args, "color_value_idx=");
-			int cidx = color_idx.isEmpty() ? 0:Integer.parseInt(color_idx.get().split("=")[1]);
+			int cidx = colorValueIdx;
 			double min = colorData.min(null,cidx);
 			double max = colorData.max(null,cidx);
 			if(min == -1) {
@@ -85,7 +146,7 @@ public class NPYScatter {
 			colorValues = null;
 		}
 		
-		ScatterPlot scatter = new ScatterPlot(useFallback(args));
+		ScatterPlot scatter = new ScatterPlot(fallback);
 		scatter.getDataModel().addData(
 				IntStream.range(0, data.shape[0])
 				.mapToObj(i->data.slice1D(i,null))
@@ -94,22 +155,16 @@ public class NPYScatter {
 				y_idx, 
 				"");
 		
-		DefaultColorMap cmap;
-		Optional<String> cmapname = findArg(args, "cmap=");
-		if(cmapname.isPresent()) {
-			cmap = Arrays.stream(DefaultColorMap.values())
-			.filter(candidate -> candidate.name().contains(cmapname.get()))
-			.findFirst()
-			.orElse(null);
-			if(cmap == null) {
-				System.err.println("cmap " + cmapname.get() + " is unknown. Available names are:");
-				Arrays.stream(DefaultColorMap.values())
-				.map(DefaultColorMap::name)
-				.forEach(System.err::println);
-				System.exit(1);
-			}
-		} else {
-			cmap = DefaultColorMap.S_TURBO;
+		DefaultColorMap cmap = Arrays.stream(DefaultColorMap.values())
+				.filter(candidate -> candidate.name().equals(cmapName))
+				.findFirst()
+				.orElse(null);
+		if (cmap == null) {
+			System.err.println("cmap " + cmapName + " is unknown. Available names are:");
+			Arrays.stream(DefaultColorMap.values())
+			.map(DefaultColorMap::name)
+			.forEach(System.err::println);
+			System.exit(1);
 		}
 		if(colorData != null){
 			scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
@@ -121,12 +176,18 @@ public class NPYScatter {
 			});
 		}
 		scatter.alignCoordsys(1.1);
-		Optional<String> ipc_file = findArg(args, "ipc_file=");
-		Path ipcFilePath = ipc_file.map(s -> FileSystems.getDefault().getPath(s.split("=")[1])).orElse(null);
+		Path ipcPath = ipcFilePath != null ? FileSystems.getDefault().getPath(ipcFilePath) : null;
 
-		Optional<String> pointsize = findArg(args, "point_size=");
-		if(pointsize.isPresent()) {
-			double s = Double.parseDouble(pointsize.get().split("=")[1]);
+		if (pointSizeStr != null) {
+			double s;
+			try {
+				s = Double.parseDouble(pointSizeStr);
+			} catch (NumberFormatException e) {
+				System.err.println("Error: --point-size must be a number. " + e.getMessage());
+				formatter.printHelp("npyscatter <coords.npy> [options]", options);
+				System.exit(1);
+				return;
+			}
 			for(CompleteRenderer r : Arrays.asList(
 					scatter.getContent(), 
 					scatter.getContentLayer0(),
@@ -160,20 +221,20 @@ public class NPYScatter {
 		});
 		
 		// file based IPC stuff
-		if(ipcFilePath != null) {
+		if(ipcPath != null) {
 			selectionModel.addSelectionListener(new SimpleSelectionListener<Pair<Integer,Integer>>() {
 				@Override
 				public void selectionChanged(SortedSet<Pair<Integer, Integer>> selection) {
 					// flatten to 1D: extract the point index (second element) from each pair
 					int[] indices = selection.stream().mapToInt(pair -> pair.second).toArray();
 					try {
-						writeSelectionToFile(ipcFilePath, indices);
+						writeSelectionToFile(ipcPath, indices);
 					} catch (IOException e) {
 						System.err.println("IPC write failed: " + e.getMessage());
 					}
 				}
 			});
-			IPCFileWatcher watcher = new IPCFileWatcher(ipcFilePath);
+			IPCFileWatcher watcher = new IPCFileWatcher(ipcPath);
 			watcher.listeners.add((int[] selection) -> {
 				selectionModel.setSelection(
 						Arrays.stream(selection).mapToObj(i->Pair.of(0, i)).collect(Collectors.toList())
@@ -186,7 +247,7 @@ public class NPYScatter {
 		frame.getContentPane().add(scatter.getCanvas().asComponent());
 		scatter.getCanvas().addCleanupOnWindowClosingListener(frame);
 		
-		if(findArg(args, "no_axes=true").isPresent()) {
+		if(noAxes) {
 			Renderer content = scatter.getCoordsys().getContent();
 			scatter.getCanvas().setRenderer(content);
 			((AdaptableView)content).setView(scatter.getCoordsys().getCoordinateView());
@@ -200,14 +261,6 @@ public class NPYScatter {
 	
 	static JPlotterCanvas mkCanvas(boolean fallback, JPlotterCanvas contextShareParent) {
 		return fallback ? new BlankCanvasFallback() : new BlankCanvas((FBOCanvas)contextShareParent);
-	}
-	
-	static boolean useFallback(String[] args) {
-		return Arrays.stream(args).filter(arg->"jplotter_fallback=true".equals(arg)).findFirst().isPresent();
-	}
-	
-	static Optional<String> findArg(String[] args, String argToFind) {
-		return Arrays.stream(args).filter(arg->arg.contains(argToFind)).findFirst();
 	}
 	
 	public static JFrame createJFrameWithBoilerPlate(String title) {
