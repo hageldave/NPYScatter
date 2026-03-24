@@ -22,7 +22,7 @@ import javax.swing.SwingUtilities;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.help.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
@@ -48,37 +48,37 @@ public class NPYScatter {
 	public static void main(String[] args) {
 		// Define all options
 		Options options = new Options();
-		options.addOption(Option.builder("h").longOpt("help").desc("Print this help message and exit.").build());
-		options.addOption(Option.builder().longOpt("x-idx").hasArg().argName("N").desc("Column index for X axis (default: 0).").build());
-		options.addOption(Option.builder().longOpt("y-idx").hasArg().argName("N").desc("Column index for Y axis (default: 1).").build());
-		options.addOption(Option.builder().longOpt("color-values").hasArg().argName("path").desc("Path to .npy file with color values.").build());
-		options.addOption(Option.builder().longOpt("color-value-idx").hasArg().argName("N").desc("Column index in color-values array (default: 0).").build());
-		options.addOption(Option.builder().longOpt("cmap").hasArg().argName("name").desc("Color map name (default: S_TURBO).").build());
-		options.addOption(Option.builder().longOpt("ipc-file").hasArg().argName("path").desc("Path to IPC file for selection exchange.").build());
-		options.addOption(Option.builder().longOpt("point-size").hasArg().argName("N").desc("Point glyph scaling factor.").build());
-		options.addOption(Option.builder().longOpt("fallback").desc("Use JPlotter fallback canvas.").build());
-		options.addOption(Option.builder().longOpt("no-axes").desc("Hide coordinate axes.").build());
+		options.addOption(Option.builder("h").longOpt("help").desc("Print this help message and exit.").get());
+		options.addOption(Option.builder("x").longOpt("x-idx").hasArg().argName("N").desc("Column index for X axis (default: 0).").get());
+		options.addOption(Option.builder("y").longOpt("y-idx").hasArg().argName("N").desc("Column index for Y axis (default: 1).").get());
+		options.addOption(Option.builder().longOpt("color-values").hasArg().argName("path").desc("Path to .npy file with values to be mapped to color.").get());
+		options.addOption(Option.builder().longOpt("color-value-idx").hasArg().argName("N").desc("Column index in color-values array (default: 0).").get());
+		options.addOption(Option.builder().longOpt("cmap").hasArg().argName("name").desc("Color map name (default: S_TURBO)").get());
+		options.addOption(Option.builder().longOpt("ipc-file").hasArg().argName("path").desc("Path to IPC file for selection exchange.").get());
+		options.addOption(Option.builder().longOpt("point-size").hasArg().argName("N").desc("Point glyph scaling factor.").get());
+		options.addOption(Option.builder().longOpt("fallback").desc("Use JPlotter fallback canvas.").get());
+		options.addOption(Option.builder().longOpt("no-axes").desc("Hide coordinate axes.").get());
 
-		HelpFormatter formatter = new HelpFormatter();
+		HelpFormatter formatter = HelpFormatter.builder().get();
 		CommandLine cmd;
 		try {
 			cmd = new DefaultParser().parse(options, args);
 		} catch (ParseException e) {
 			System.err.println("Error: " + e.getMessage());
-			formatter.printHelp("npyscatter <coords.npy> [options]", options);
+			printHelp(formatter,options,false);
 			System.exit(1);
 			return;
 		}
 
 		if (cmd.hasOption("help")) {
-			formatter.printHelp("npyscatter <coords.npy> [options]", options);
+			printHelp(formatter,options,true);
 			System.exit(0);
 		}
 
 		String[] positional = cmd.getArgs();
 		if (positional.length == 0) {
 			System.err.println("Error: missing required positional argument <coords.npy>");
-			formatter.printHelp("npyscatter <coords.npy> [options]", options);
+			printHelp(formatter,options,false);
 			System.exit(1);
 		}
 		String coordsFile = positional[0];
@@ -92,7 +92,7 @@ public class NPYScatter {
 			colorValueIdx = Integer.parseInt(cmd.getOptionValue("color-value-idx", "0"));
 		} catch (NumberFormatException e) {
 			System.err.println("Error: --x-idx, --y-idx, and --color-value-idx must be integers. " + e.getMessage());
-			formatter.printHelp("npyscatter <coords.npy> [options]", options);
+			printHelp(formatter,options, false);
 			System.exit(1);
 			return;
 		}
@@ -102,18 +102,6 @@ public class NPYScatter {
 		String pointSizeStr = cmd.getOptionValue("point-size");
 		boolean fallback = cmd.hasOption("fallback");
 		boolean noAxes = cmd.hasOption("no-axes");
-
-		// Print parsed arguments
-		System.out.println("coords file : " + coordsFile);
-		System.out.println("x-idx       : " + x_idx);
-		System.out.println("y-idx       : " + y_idx);
-		System.out.println("color-values: " + colorValuesPath);
-		System.out.println("color-val-idx: " + colorValueIdx);
-		System.out.println("cmap        : " + cmapName);
-		System.out.println("ipc-file    : " + ipcFilePath);
-		System.out.println("point-size  : " + pointSizeStr);
-		System.out.println("fallback    : " + fallback);
-		System.out.println("no-axes     : " + noAxes);
 
 		NpyArray arr = NpyFile.read(FileSystems.getDefault().getPath(coordsFile), 1024);
 		NumpyArray data = new NumpyArray(arr);
@@ -156,7 +144,7 @@ public class NPYScatter {
 				"");
 		
 		DefaultColorMap cmap = Arrays.stream(DefaultColorMap.values())
-				.filter(candidate -> candidate.name().equals(cmapName))
+				.filter(candidate -> candidate.name().contains(cmapName))
 				.findFirst()
 				.orElse(null);
 		if (cmap == null) {
@@ -184,7 +172,7 @@ public class NPYScatter {
 				s = Double.parseDouble(pointSizeStr);
 			} catch (NumberFormatException e) {
 				System.err.println("Error: --point-size must be a number. " + e.getMessage());
-				formatter.printHelp("npyscatter <coords.npy> [options]", options);
+				printHelp(formatter,options, false);
 				System.exit(1);
 				return;
 			}
@@ -257,6 +245,14 @@ public class NPYScatter {
 			frame.pack();
 			frame.setVisible(true);
 		});
+	}
+	
+	static void printHelp(HelpFormatter formatter, Options options, boolean example) {
+		try {
+			formatter.printHelp("npyscatter <coords.npy> [options]","", options, "", example);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 	
 	static JPlotterCanvas mkCanvas(boolean fallback, JPlotterCanvas contextShareParent) {
