@@ -14,6 +14,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -230,15 +234,25 @@ public class NPYScatter {
 		// file based IPC stuff
 		if(ipcPath != null) {
 			selectionModel.addSelectionListener(new SimpleSelectionListener<Pair<Integer,Integer>>() {
+				
+				private ExecutorService exec = Executors.newSingleThreadExecutor();
+				AtomicReference<int[]> pendingWrite = new AtomicReference<>(null);
+				
 				@Override
 				public void selectionChanged(SortedSet<Pair<Integer, Integer>> selection) {
 					// flatten to 1D: extract the point index (second element) from each pair
 					int[] indices = selection.stream().mapToInt(pair -> pair.second).toArray();
-					try {
-						writeSelectionToFile(ipcPath, indices);
-					} catch (IOException e) {
-						System.err.println("IPC write failed: " + e.getMessage());
-					}
+					pendingWrite.set(indices);
+					exec.submit(() -> {
+						int[] to_write = pendingWrite.getAndSet(null);
+						if(to_write == null)
+							return; // another job already writing this selection, skip
+						try {
+							writeSelectionToFile(ipcPath, to_write);
+						} catch (IOException e) {
+							System.err.println("IPC write failed: " + e.getMessage());
+						}
+					});
 				}
 			});
 			IPCFileWatcher watcher = new IPCFileWatcher(ipcPath);
