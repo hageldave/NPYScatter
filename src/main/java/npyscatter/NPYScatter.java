@@ -16,7 +16,6 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -26,10 +25,10 @@ import javax.swing.SwingUtilities;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.help.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.help.HelpFormatter;
 import org.jetbrains.bio.npy.NpyArray;
 import org.jetbrains.bio.npy.NpyFile;
 
@@ -58,12 +57,15 @@ public class NPYScatter {
 		options.addOption(Option.builder().longOpt("color-values").hasArg().argName("path").desc("Path to .npy file with values to be mapped to color.").get());
 		options.addOption(Option.builder().longOpt("color-value-idx").hasArg().argName("N").desc("Column index in color-values array (default: 0).").get());
 		options.addOption(Option.builder().longOpt("cmap").hasArg().argName("name").desc("Color map name (default: S_TURBO)").get());
-		options.addOption(Option.builder().longOpt("ipc-file").hasArg().argName("path").desc("Path to IPC file for selection exchange.").get());
-		options.addOption(Option.builder().longOpt("point-size").hasArg().argName("N").desc("Point glyph scaling factor.").get());
+		options.addOption(Option.builder("i").longOpt("ipc-file").hasArg().argName("path").desc("Path to IPC file for selection exchange.").get());
+		options.addOption(Option.builder("p").longOpt("point-size").hasArg().argName("N").desc("Point glyph scaling factor.").get());
 		options.addOption(Option.builder().longOpt("fallback").desc("Use JPlotter fallback canvas.").get());
 		options.addOption(Option.builder().longOpt("no-axes").desc("Hide coordinate axes.").get());
-		options.addOption(Option.builder().longOpt("size").hasArg().argName("N,N").desc("Size of the canvas <Width,Height>.").get());
-		options.addOption(Option.builder("v").longOpt("view").hasArg().argName("N,N,N,N").desc("Coordinate view limits (view port) <MinX,MaxX,MinY,MaxY>. Defaults to bounding box of data if not provided.").get());
+		options.addOption(Option.builder("s").longOpt("size").hasArg().argName("N,N").desc("Size of the canvas <Width,Height>.").get());
+		options.addOption(Option.builder("v").longOpt("view").hasArg().argName("N,N,N,N").desc("Coordinate view limits (view port) <MinX,MaxX,MinY,MaxY>. " + 
+				"Make sure the argument is properly escaped so that negative values are not recognized as options (e.g. '\"-1,1,-1,1\"'). " + 
+				"Defaults to bounding box of data if not provided.")
+				.get());
 		
 		
 		HelpFormatter formatter = HelpFormatter.builder().get();
@@ -117,7 +119,19 @@ public class NPYScatter {
 			}
 		}
 		double[] view = null;
-		// TODO: parse view
+		String viewStr = cmd.getOptionValue("view");
+		if(viewStr != null) {
+			try {
+				view = Arrays.stream(viewStr.split(",")).mapToDouble(Double::parseDouble).toArray();
+				if(view.length != 4) {
+					throw new IllegalArgumentException("Expected 4 comma separated numbers for view limits.");
+				}
+			} catch(Exception e) {
+				System.err.println("Error: view argument malformed. " + e.getMessage());
+				printHelp(formatter,options, false);
+				System.exit(1);
+			}
+		}
 		
 		String colorValuesPath = cmd.getOptionValue("color-values");
 		String cmapName = cmd.getOptionValue("cmap", "S_TURBO");
@@ -186,7 +200,11 @@ public class NPYScatter {
 				}
 			});
 		}
-		scatter.alignCoordsys(1.1);
+		if(view != null) {
+			scatter.getCoordsys().setCoordinateView(view[0], view[2], view[1], view[3]);
+		} else {
+			scatter.alignCoordsys(1.1);
+		}
 		Path ipcPath = ipcFilePath != null ? FileSystems.getDefault().getPath(ipcFilePath) : null;
 
 		if (pointSizeStr != null) {
@@ -264,7 +282,7 @@ public class NPYScatter {
 			watcher.start();
 		}
 		
-		JFrame frame = createJFrameWithBoilerPlate("Numpy Array Scatter Plot");
+		JFrame frame = createJFrameWithBoilerPlate("NPYS - " + (coordsFile.length() > 30 ? "..." + coordsFile.substring(coordsFile.length()-(30-3)) : coordsFile));
 		scatter.getCanvas().asComponent().setPreferredSize(new Dimension(width, height));
 		frame.getContentPane().add(scatter.getCanvas().asComponent());
 		scatter.getCanvas().addCleanupOnWindowClosingListener(frame);
