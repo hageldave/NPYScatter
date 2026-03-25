@@ -58,7 +58,10 @@ public class NPYScatter {
 		options.addOption(Option.builder().longOpt("point-size").hasArg().argName("N").desc("Point glyph scaling factor.").get());
 		options.addOption(Option.builder().longOpt("fallback").desc("Use JPlotter fallback canvas.").get());
 		options.addOption(Option.builder().longOpt("no-axes").desc("Hide coordinate axes.").get());
-
+		options.addOption(Option.builder().longOpt("size").hasArg().argName("N,N").desc("Size of the canvas <Width,Height>.").get());
+		options.addOption(Option.builder("v").longOpt("view").hasArg().argName("N,N,N,N").desc("Coordinate view limits (view port) <MinX,MaxX,MinY,MaxY>. Defaults to bounding box of data if not provided.").get());
+		
+		
 		HelpFormatter formatter = HelpFormatter.builder().get();
 		CommandLine cmd;
 		try {
@@ -96,6 +99,22 @@ public class NPYScatter {
 			System.exit(1);
 			return;
 		}
+		int width=400;
+		int height=400;
+		String size = cmd.getOptionValue("size");
+		if(size != null) {
+			try {
+				width = Integer.parseInt(size.split(",")[0]);
+				height= Integer.parseInt(size.split(",")[1]);
+			} catch(Exception e) {
+				System.err.println("Error: size argument malformed. " + e.getMessage());
+				printHelp(formatter,options, false);
+				System.exit(1);
+			}
+		}
+		double[] view = null;
+		// TODO: parse view
+		
 		String colorValuesPath = cmd.getOptionValue("color-values");
 		String cmapName = cmd.getOptionValue("cmap", "S_TURBO");
 		String ipcFilePath = cmd.getOptionValue("ipc-file");
@@ -232,6 +251,7 @@ public class NPYScatter {
 		}
 		
 		JFrame frame = createJFrameWithBoilerPlate("Numpy Array Scatter Plot");
+		scatter.getCanvas().asComponent().setPreferredSize(new Dimension(width, height));
 		frame.getContentPane().add(scatter.getCanvas().asComponent());
 		scatter.getCanvas().addCleanupOnWindowClosingListener(frame);
 		
@@ -264,7 +284,7 @@ public class NPYScatter {
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.getContentPane().setLayout(new BorderLayout());
 		frame.setTitle(title);
-		frame.setMinimumSize(new Dimension(100, 100));
+		frame.setMinimumSize(new Dimension(10, 10));
 		return frame;
 	}
 	
