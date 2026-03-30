@@ -44,6 +44,7 @@ import hageldave.jplotter.interaction.kml.KeyMaskListener;
 import hageldave.jplotter.renderers.AdaptableView;
 import hageldave.jplotter.renderers.CompleteRenderer;
 import hageldave.jplotter.renderers.Renderer;
+import hageldave.jplotter.util.ExportUtil;
 import hageldave.jplotter.util.Pair;
 
 public class NPYScatter {
@@ -66,6 +67,8 @@ public class NPYScatter {
 				"Make sure the argument is properly escaped so that negative values are not recognized as options (e.g. '\"-1,1,-1,1\"'). " + 
 				"Defaults to bounding box of data if not provided.")
 				.get());
+		options.addOption(Option.builder("o").longOpt("output").hasArg().argName("path").desc("Path to output file (*.png, *.svg, *.pdf).").get());
+		
 		
 		
 		HelpFormatter formatter = HelpFormatter.builder().get();
@@ -139,6 +142,7 @@ public class NPYScatter {
 		String pointSizeStr = cmd.getOptionValue("point-size");
 		boolean fallback = cmd.hasOption("fallback");
 		boolean noAxes = cmd.hasOption("no-axes");
+		String outputPath = cmd.getOptionValue("output");
 
 		NpyArray arr = NpyFile.read(FileSystems.getDefault().getPath(coordsFile), 1024);
 		NumpyArray data = new NumpyArray(arr);
@@ -279,6 +283,14 @@ public class NPYScatter {
 						Arrays.stream(selection).mapToObj(i->Pair.of(0, i)).collect(Collectors.toList())
 				);
 			});
+			if(ipcPath.toFile().exists()) {
+				try {
+					int[] initialSelection = IPCFileWatcher.readIndices(ipcPath);
+					watcher.notifyListeners(initialSelection);
+				} catch (IOException e) {
+					System.err.println("Error reading initial selection from IPC file: " + e.getMessage());
+				}
+			}
 			watcher.start();
 		}
 		
@@ -297,6 +309,31 @@ public class NPYScatter {
 			frame.pack();
 			frame.setVisible(true);
 		});
+		
+		if(outputPath != null) {
+			scatter.getCanvas().scheduleRepaint();
+			SwingUtilities.invokeLater(() -> {
+				try {
+					if(outputPath.toLowerCase().endsWith(".png")) {
+						ExportUtil.canvasToPNG(scatter.getCanvas(), outputPath);
+					}
+					else if(outputPath.toLowerCase().endsWith(".svg")) {
+						ExportUtil.canvasToSVG(scatter.getCanvas(), outputPath);
+					}
+					else if(outputPath.toLowerCase().endsWith(".pdf")) {
+						ExportUtil.canvasToPDF(scatter.getCanvas(), outputPath);
+					}
+					else {
+						System.err.println("Error: output file extension not recognized. Supported extensions are .png, .svg, and .pdf");
+						System.exit(1);
+					}
+				} catch (RuntimeException e) {
+					System.err.println("Error saving output file: " + e.getMessage());
+					System.exit(1);
+				}
+				System.exit(0);
+			});
+		}
 	}
 	
 	static void printHelp(HelpFormatter formatter, Options options, boolean example) {

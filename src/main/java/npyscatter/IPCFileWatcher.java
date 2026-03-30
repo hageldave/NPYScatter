@@ -41,11 +41,7 @@ public class IPCFileWatcher extends Thread {
 				for (WatchEvent<?> event : key.pollEvents()) {
 					Path changed = (Path) event.context();
 					if (changed.equals(ipcFile.getFileName())) {
-						int[] indices = ipcFile.endsWith(".npy") 
-								? 
-								NpyFile.read(ipcFile, 1024).asIntArray() 
-								:
-								Files.readAllLines(ipcFile).stream().mapToInt(Integer::parseInt).toArray();
+						int[] indices = readIndices(ipcFile);
 						SwingUtilities.invokeLater(()->{notifyListeners(indices);});
 					}
 				}
@@ -57,6 +53,14 @@ public class IPCFileWatcher extends Thread {
 		} catch(InterruptedException e) {
 			// NOOP
 		}
+	}
+	
+	public static int[] readIndices(Path ipcFile) throws IOException {
+		return ipcFile.endsWith(".npy")
+		? 
+		NpyFile.read(ipcFile, 1024).asIntArray() 
+		:
+		Files.readAllLines(ipcFile).stream().mapToInt(Integer::parseInt).toArray();
 	}
 	
 	public void notifyListeners(int[] arr) {
