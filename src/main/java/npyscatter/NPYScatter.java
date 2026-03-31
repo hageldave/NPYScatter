@@ -160,17 +160,12 @@ public class NPYScatter {
 			}
 		}
 		double[] colorValues;
+		double[] cminmax = {0,1};
 		if(colorData != null) {
 			int cidx = colorValueIdx;
-			double min = colorData.min(null,cidx);
-			double max = colorData.max(null,cidx);
-			if(min == -1) {
-				colorValues = Arrays.stream(colorData.slice1D(null,cidx))
-						.map(v->(v)/(max)).toArray();
-			} else {
-				colorValues = Arrays.stream(colorData.slice1D(null,cidx))
-						.map(v->(v-min)/(max-min)).toArray();
-			}
+			cminmax[0] = colorData.min(null,cidx);
+			cminmax[1] = colorData.max(null,cidx);
+			colorValues = colorData.slice1D(null,cidx);
 		} else {
 			colorValues = null;
 		}
@@ -196,13 +191,56 @@ public class NPYScatter {
 			System.exit(1);
 		}
 		if(colorData != null){
-			scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
-				@Override
-				public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
-					double v = colorValues[pointIdx];
-					return v < 0 ? 0x33ff00ff : cmap.interpolate(v);
+			// check if color values are integer valued and colormap is discrete
+			boolean integerValued = Arrays.stream(colorValues).allMatch(v -> v == Math.floor(v));
+			boolean disctretecmap = cmap.name().startsWith("Q");
+			if(disctretecmap && integerValued) {
+				scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
+					@Override
+					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
+						double v = colorValues[pointIdx];
+						return v < 0 ? 0x33ff00ff : cmap.getColor(((int)v)%cmap.numColors());
+					}
+				});
+			} else if(disctretecmap && !integerValued) {
+				System.err.println("Warning: color values are not integer valued but colormap is discrete. Mapping unique values to discrete discrete colors");
+				// find unique values and map to discrete colors
+				double[] uniqueValues = Arrays.stream(colorValues).distinct().toArray();
+				Arrays.sort(uniqueValues);
+				int[] discretecolorvalues = Arrays.stream(colorValues)
+						.mapToInt(v -> Arrays.binarySearch(uniqueValues, v))
+						.toArray();
+				scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
+					@Override
+					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
+						int v = discretecolorvalues[pointIdx];
+						return cmap.getColor(v%cmap.numColors());
+					}
+				});
+			} else {
+				/* continuous colormap case: using interpolation */
+				if(cminmax[0] == -1 && integerValued) {
+					/* special case: -1 usually indicating missing label (e.g. noise cluster)
+					 * therefore we assume that the actual minimum is 0 and all values < 0 should be mapped to a 
+					 * special color (magenta in this case).
+					 */
+					cminmax[0] = 0;
+				} else if(cmap.name().startsWith("D") && cminmax[0] < 0 && cminmax[1] > 0) {
+					/* diverging colormap with values around 0: we assume that the diverging point is at 0.
+					 */
+					double absmax = Math.max(Math.abs(cminmax[0]), Math.abs(cminmax[1]));
+					cminmax[0] = -absmax;
+					cminmax[1] = absmax;
 				}
-			});
+				scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
+					double div_by_range = 1.0/(cminmax[1]-cminmax[0]);
+					@Override
+					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
+						double v = (colorValues[pointIdx]-cminmax[0])*div_by_range;
+						return v < 0 ? 0x33ff00ff : cmap.interpolate(v);
+					}
+				});
+			}
 		}
 		if(view != null) {
 			scatter.getCoordsys().setCoordinateView(view[0], view[2], view[1], view[3]);
@@ -303,6 +341,14 @@ public class NPYScatter {
 			Renderer content = scatter.getCoordsys().getContent();
 			scatter.getCanvas().setRenderer(content);
 			((AdaptableView)content).setView(scatter.getCoordsys().getCoordinateView());
+		}
+		
+		if(outputPath != null) {
+			/* non interactive mode, only render to file and exit. Therfore:
+			 * make frame undecorated to allow for canvas sizes larger than screen size 
+			 * without triggering automatic resizing by the OS
+			 */
+			frame.setUndecorated(true);
 		}
 		
 		SwingUtilities.invokeLater(()->{
