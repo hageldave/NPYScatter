@@ -17,7 +17,7 @@ which will compile the code and assemble a runnable .jar file in a newly created
 The application can then be run via `java -jar target/npyscatter-0.0.1-SNAPSHOT-jar-with-dependencies.jar`.
 
 > **Note:** It is recommended to create a script (bash/powershell, depending on OS) that contains this command and make it available globally.
-> This way you can use a concise abbriviation like `npyscatter` as used in this readme.
+> This way you can use a concise abbreviation like `npyscatter` as used in this readme.
 > When updating your build, nothing needs to be moved or replaced.
 
 ### Ubuntu Script Example
@@ -28,7 +28,7 @@ java -jar ~/git/NPYScatter/target/npyscatter-0.0.1-SNAPSHOT-jar-with-dependencie
 ```
 make it executable, then move it to ~/.local/bin/ which should be on your PATH by default.
 ```bash
-chmod a+w npyscatter
+chmod a+x npyscatter
 mv npyscatter ~/.local/bin/ # or ~/bin/ or another directory included on $PATH that you can write to
 ```
 
