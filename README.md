@@ -34,24 +34,29 @@ mv npyscatter ~/.local/bin/ # or ~/bin/ or another directory included on $PATH t
 
 ## Brushing & Linking via IPC
 
-NPYScatter can write the currently selected point indices to a `.npy` file
-whenever the selection changes. Other applications can watch this file and
-react accordingly (e.g. for brushing & linking across views).
+NPYScatter implements file-based inter process communication (IPC) for brushing and linking.
+It can write the currently selected point indices to a `.npy` or text file whenever the selection changes. 
+Other applications can watch this file and react accordingly (e.g. for brushing & linking across views). 
+Infact, NPYScatter watches this file and updates the highlighted points on change accordingly. 
+This mechanism allows multiple instances of NPYScatter to be linked easily when they share the same selection file.
 
 ### Usage
 
-Pass the `ipc_file=` argument when launching:
+Pass the file as the `-i` or `--ipc-file` option's argument when launching:
 
-```
-java -jar npyscatter.jar data.npy ipc_file=/tmp/selection.npy
+```bash
+npyscatter data.npy --ipc-file /tmp/selection.npy
 ```
 
 The file contains a **1D int32 NumPy array** of the selected point indices.
 An empty selection writes an array of shape `(0,)`.
 
----
+A plain text file can also be used.
+```bash
+npyscatter data.npy -i selection.txt
+```
 
-### Java consumer (using `WatchService`)
+#### Example: Java consumer (using `WatchService`)
 
 ```java
 import org.jetbrains.bio.npy.NpyFile;
@@ -95,9 +100,8 @@ watcher.close();
 > the `stopRequested` condition is checked regularly even when no events arrive,
 > rather than blocking indefinitely.
 
----
 
-### Python consumer (using polling)
+#### Example: Python consumer (using polling)
 
 ```python
 import numpy as np
