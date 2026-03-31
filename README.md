@@ -4,12 +4,10 @@ Application for viewing .npy (numpy array) files in a scatter plot.
 npyscatter example_data/iris_data.npy
 npyscatter example_data/iris_data.npy --color-values example_data/iris_labels.npy --cmap SET2 -x 0 -y 2
 ```
-<img width="420" height="455" alt="image" src="https://github.com/user-attachments/assets/cfadb3fc-c8e8-4057-aca6-0788a8a9fe40" />
 
-<img width="420" height="455" alt="image" src="https://github.com/user-attachments/assets/7ac5403e-363c-499b-83ed-abed829f3a00" />
+<img width="808" height="441" alt="npyscatter" src="https://github.com/user-attachments/assets/2cbe6c9c-7a6b-4818-a8b8-f1c954302abc" />
 
 
-## Installation
 NPYScatter is a Java application which is built with Maven. To build it, use
 ```
 mvn clean install
