@@ -4,7 +4,9 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Shape;
 import java.awt.event.KeyEvent;
+import java.awt.geom.Rectangle2D;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,6 +14,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
@@ -68,8 +71,7 @@ public class NPYScatter {
 				"Defaults to bounding box of data if not provided.")
 				.get());
 		options.addOption(Option.builder("o").longOpt("output").hasArg().argName("path").desc("Path to output file (*.png, *.svg, *.pdf).").get());
-		
-		
+		options.addOption(Option.builder().longOpt("jitter").hasArg().argName("N").desc("Add jitter to scatter points. Value in pixels.").get());
 		
 		HelpFormatter formatter = HelpFormatter.builder().get();
 		CommandLine cmd;
@@ -143,6 +145,7 @@ public class NPYScatter {
 		boolean fallback = cmd.hasOption("fallback");
 		boolean noAxes = cmd.hasOption("no-axes");
 		String outputPath = cmd.getOptionValue("output");
+		String jitter = cmd.getOptionValue("jitter");
 
 		NpyArray arr = NpyFile.read(FileSystems.getDefault().getPath(coordsFile), 1024);
 		NumpyArray data = new NumpyArray(arr);
@@ -247,8 +250,7 @@ public class NPYScatter {
 		} else {
 			scatter.alignCoordsys(1.1);
 		}
-		Path ipcPath = ipcFilePath != null ? FileSystems.getDefault().getPath(ipcFilePath) : null;
-
+		
 		if (pointSizeStr != null) {
 			double s;
 			try {
@@ -292,6 +294,7 @@ public class NPYScatter {
 		});
 		
 		// file based IPC stuff
+		Path ipcPath = ipcFilePath != null ? FileSystems.getDefault().getPath(ipcFilePath) : null;
 		if(ipcPath != null) {
 			selectionModel.addSelectionListener(new SimpleSelectionListener<Pair<Integer,Integer>>() {
 				
@@ -355,6 +358,47 @@ public class NPYScatter {
 			frame.pack();
 			frame.setVisible(true);
 		});
+		
+		if(jitter != null) {
+			double jitterVal;
+			try {
+				jitterVal = Double.parseDouble(jitter);
+			} catch (NumberFormatException e) {
+				System.err.println("Error: --jitter must be a number. " + e.getMessage());
+				printHelp(formatter,options, false);
+				System.exit(1);
+				return;
+			}
+			// determine viewport of scatter points
+			Rectangle2D[] viewport = {null};
+			scatter.getCanvas().scheduleRepaint();
+			try {
+				SwingUtilities.invokeAndWait(()->{
+					if(noAxes) {
+						viewport[0] = scatter.getCanvas().asComponent().getBounds();
+					} else {
+						viewport[0] = scatter.getCoordsys().getCoordSysArea();
+					}
+				});
+			} catch (InvocationTargetException | InterruptedException e) {
+				System.err.println("Error during jitter setup: " + e.getMessage());
+				System.exit(1);
+				return;
+			}
+			// compute jitter magnitudes
+			Rectangle2D view_rect = scatter.getCoordsys().getCoordinateView();
+			double xjitter = jitterVal * view_rect.getWidth() / viewport[0].getWidth();
+			double yjitter = jitterVal * view_rect.getHeight() / viewport[0].getHeight();
+			// apply jitter by overriding the scatter plot's point positions with a random translation
+			double[][] curr_data = scatter.getDataModel().getDataChunk(0);
+			Random rand = new Random(0xC0FFEE);
+			for(int i=0; i<curr_data.length; i++) {
+				curr_data[i][x_idx] += (rand.nextDouble()*2-1)*xjitter;
+				if(x_idx != y_idx)
+					curr_data[i][y_idx] += (rand.nextDouble()*2-1)*yjitter;
+			}
+			scatter.getDataModel().setDataChunk(0, curr_data);
+		}
 		
 		if(outputPath != null) {
 			scatter.getCanvas().scheduleRepaint();
