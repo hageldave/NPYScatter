@@ -7,6 +7,7 @@ npyscatter example_data/iris_data.npy --color-values example_data/iris_labels.np
 
 <img width="808" height="441" alt="npyscatter" src="https://github.com/user-attachments/assets/2cbe6c9c-7a6b-4818-a8b8-f1c954302abc" />
 
+## Installation
 
 NPYScatter is a Java application which is built with Maven. To build it, use
 ```
