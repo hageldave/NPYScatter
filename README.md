@@ -16,7 +16,10 @@ mvn clean install
 which will compile the code and assemble a runnable .jar file in a newly created subdirectory `target/`.
 The application can then be run via `java -jar target/npyscatter-0.0.1-SNAPSHOT-jar-with-dependencies.jar`.
 
-**It is recommended to create a script** bash/powershell (depending on OS) that contains this command and make it available globally.
+> **Note:** It is recommended to create a script (bash/powershell, depending on OS) that contains this command and make it available globally.
+> This way you can use a concise abbriviation like `npyscatter` as used in this readme.
+> When updating your build, nothing needs to be moved or replaced.
+
 ### Ubuntu Script Example
 Create a file `npyscatter`, containing
 ```bash
