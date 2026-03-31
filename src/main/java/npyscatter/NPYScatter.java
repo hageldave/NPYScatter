@@ -1,7 +1,10 @@
 package npyscatter;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Rectangle2D;
@@ -35,12 +38,15 @@ import org.apache.commons.cli.help.HelpFormatter;
 import org.jetbrains.bio.npy.NpyArray;
 import org.jetbrains.bio.npy.NpyFile;
 
+import hageldave.imagingkit.core.Img;
+import hageldave.imagingkit.core.util.ImageFrame;
 import hageldave.jplotter.canvas.BlankCanvas;
 import hageldave.jplotter.canvas.BlankCanvasFallback;
 import hageldave.jplotter.canvas.FBOCanvas;
 import hageldave.jplotter.canvas.JPlotterCanvas;
 import hageldave.jplotter.charts.ScatterPlot;
 import hageldave.jplotter.color.DefaultColorMap;
+import hageldave.jplotter.font.FontProvider;
 import hageldave.jplotter.interaction.SimpleSelectionModel;
 import hageldave.jplotter.interaction.SimpleSelectionModel.SimpleSelectionListener;
 import hageldave.jplotter.interaction.kml.KeyMaskListener;
@@ -60,7 +66,7 @@ public class NPYScatter {
 		options.addOption(Option.builder("y").longOpt("y-idx").hasArg().argName("N").desc("Column index for Y axis (default: 1).").get());
 		options.addOption(Option.builder().longOpt("color-values").hasArg().argName("path").desc("Path to .npy file with values to be mapped to color.").get());
 		options.addOption(Option.builder().longOpt("color-value-idx").hasArg().argName("N").desc("Column index in color-values array (default: 0).").get());
-		options.addOption(Option.builder().longOpt("cmap").hasArg().argName("name").desc("Color map name (default: S_TURBO)").get());
+		options.addOption(Option.builder().longOpt("cmap").hasArg().argName("name").desc("Color map name (default: S_TURBO). Use --cmap-list to get a list of available color maps.").get());
 		options.addOption(Option.builder("i").longOpt("ipc-file").hasArg().argName("path").desc("Path to IPC file for selection exchange.").get());
 		options.addOption(Option.builder("p").longOpt("point-size").hasArg().argName("N").desc("Point glyph scaling factor.").get());
 		options.addOption(Option.builder().longOpt("fallback").desc("Use JPlotter fallback canvas.").get());
@@ -72,6 +78,8 @@ public class NPYScatter {
 				.get());
 		options.addOption(Option.builder("o").longOpt("output").hasArg().argName("path").desc("Path to output file (*.png, *.svg, *.pdf).").get());
 		options.addOption(Option.builder().longOpt("jitter").hasArg().argName("N").desc("Add jitter to scatter points. Value in pixels.").get());
+		options.addOption(Option.builder().longOpt("cmap-list").desc("List available color maps and exit.").get());
+		options.addOption(Option.builder().longOpt("cmap-show").desc("Shows available color maps in a GUI.").get());
 		
 		HelpFormatter formatter = HelpFormatter.builder().get();
 		CommandLine cmd;
@@ -87,6 +95,43 @@ public class NPYScatter {
 		if (cmd.hasOption("help")) {
 			printHelp(formatter,options,true);
 			System.exit(0);
+		}
+		
+		if (cmd.hasOption("cmap-list")) {
+			System.out.println("Available color maps (can also specify only part of the name, first match will be used):");
+			Arrays.stream(DefaultColorMap.values())
+			.map(DefaultColorMap::name)
+			.forEach(System.out::println);
+			System.exit(0);
+		}
+		
+		if(cmd.hasOption("cmap-show")) {
+			int numcmaps = DefaultColorMap.values().length;
+			int h = 30;
+			int w = 300;
+			Img img = new Img(w, h*numcmaps);
+			for(int i=0; i<numcmaps; i++) {
+				DefaultColorMap cmap = DefaultColorMap.values()[i];
+				Img cmapimg = cmap.toImg(w, h, true, !cmap.name().startsWith("Q"));
+				cmapimg.paint(g2d->{
+					g2d.setColor(new Color(0x66ffffff, true));
+					g2d.setFont(FontProvider.getUbuntuMono(14, Font.PLAIN));
+					Rectangle stringBounds = g2d.getFontMetrics().getStringBounds(cmap.name(), g2d).getBounds();
+					g2d.fillRect(3, 27-stringBounds.height, 4+stringBounds.width, stringBounds.height);
+					g2d.setColor(java.awt.Color.BLACK);
+					g2d.drawString(cmap.name(), 5, 24);
+				});
+				cmapimg.copyArea(0, 0, w, h, img, 0, i*h);
+			}
+			ImageFrame frame = new ImageFrame();
+			frame.setTitle("NPYS - Color Maps");
+			frame.setPreferredSize(new Dimension(w,1000));
+			frame.useDefaultSettings();
+			SwingUtilities.invokeLater( () -> {
+				frame.setImg(img);
+				frame.setVisible(true);
+			});
+			return;
 		}
 
 		String[] positional = cmd.getArgs();
