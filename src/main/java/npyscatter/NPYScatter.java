@@ -147,19 +147,29 @@ public class NPYScatter {
 		String outputPath = cmd.getOptionValue("output");
 		String jitter = cmd.getOptionValue("jitter");
 
-		NpyArray arr = NpyFile.read(FileSystems.getDefault().getPath(coordsFile), 1024);
+		NpyArray arr;
+		try {
+			arr = readNpyArray(FileSystems.getDefault().getPath(coordsFile));
+		} catch (IOException e) {
+			System.err.println("Error reading coordinates file (" + e.getClass().getSimpleName() + "): " + e.getMessage());
+			System.exit(1);
+			return;
+		}
 		NumpyArray data = new NumpyArray(arr);
 		
 		NumpyArray colorData = null;
 		if (colorValuesPath != null) {
-			NpyArray arr_color = NpyFile.read(
-					FileSystems.getDefault().getPath(colorValuesPath),
-					1024
-			);
-			if(arr_color.getShape().length == 1) {
-				colorData = new NumpyArray(NumpyArray.to_double(arr_color.getData()), new int[]{data.shape[0], 1});
-			} else {
-				colorData = new NumpyArray(arr_color);
+			try {
+				NpyArray arr_color = readNpyArray(FileSystems.getDefault().getPath(colorValuesPath));
+				if(arr_color.getShape().length == 1) {
+					colorData = new NumpyArray(NumpyArray.to_double(arr_color.getData()), new int[]{data.shape[0], 1});
+				} else {
+					colorData = new NumpyArray(arr_color);
+				}
+			} catch (IOException e) {
+				System.err.println("Error reading color values file (" + e.getClass().getSimpleName() + "): " + e.getMessage());
+				System.exit(1);
+				return;
 			}
 		}
 		double[] colorValues;
@@ -329,7 +339,7 @@ public class NPYScatter {
 					int[] initialSelection = IPCFileWatcher.readIndices(ipcPath);
 					watcher.notifyListeners(initialSelection);
 				} catch (IOException e) {
-					System.err.println("Error reading initial selection from IPC file: " + e.getMessage());
+					System.err.println("Error reading initial selection from IPC file ("+ e.getClass().getSimpleName() +"): " + e.getMessage());
 				}
 			}
 			watcher.start();
@@ -474,6 +484,11 @@ public class NPYScatter {
 			// Clean up the temp file in case the move failed
 			Files.deleteIfExists(tmp);
 		}
+	}
+	
+	/* Utility method that adds throws declaration cause NpyFile is kotlin and does not specify it correctly */
+	public static NpyArray readNpyArray(Path file) throws IOException {
+		return NpyFile.read(file, 1024);
 	}
 
 }
