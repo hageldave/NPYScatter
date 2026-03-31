@@ -1,6 +1,26 @@
 # NPYScatter
 Application for viewing .npy (numpy array) files in a scatter plot
 
+## Installation
+NPYScatter is a Java application which is built with Maven. To build it, use
+```
+mvn clean install
+```
+which will compile the code and assemble a runnable .jar file in a newly created subdirectory `target/`.
+The application can then be run via `java -jar target/npyscatter-0.0.1-SNAPSHOT-jar-with-dependencies.jar`.
+
+**It is recommended to create a script** bash/powershell (depending on OS) that contains this command and make it available globally.
+### Ubuntu Script Example
+Create a file `npyscatter`, containing
+```bash
+#!/usr/bin/env bash
+java -jar ~/git/NPYScatter/target/npyscatter-0.0.1-SNAPSHOT-jar-with-dependencies.jar $*
+```
+make it executable, then move it to /~.local/bin/ which should be on your PATH by default.
+```bash
+mv npyscatter ~/.local/bin/
+```
+
 ## Brushing & Linking via IPC
 
 NPYScatter can write the currently selected point indices to a `.npy` file
