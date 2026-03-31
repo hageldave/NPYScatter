@@ -80,6 +80,8 @@ public class NPYScatter {
 		options.addOption(Option.builder().longOpt("jitter").hasArg().argName("N").desc("Add jitter to scatter points. Value in pixels.").get());
 		options.addOption(Option.builder().longOpt("cmap-list").desc("List available color maps and exit.").get());
 		options.addOption(Option.builder().longOpt("cmap-show").desc("Shows available color maps in a GUI.").get());
+		options.addOption(Option.builder().longOpt("x-label").hasArg().argName("name").desc("Label for X axis. Default is 'Dim N' where N is the x-idx.").get());
+		options.addOption(Option.builder().longOpt("y-label").hasArg().argName("name").desc("Label for Y axis. Default is 'Dim N' where N is the y-idx.").get());
 		
 		HelpFormatter formatter = HelpFormatter.builder().get();
 		CommandLine cmd;
@@ -191,6 +193,8 @@ public class NPYScatter {
 		boolean noAxes = cmd.hasOption("no-axes");
 		String outputPath = cmd.getOptionValue("output");
 		String jitter = cmd.getOptionValue("jitter");
+		String xLabel = cmd.getOptionValue("x-label", "Dim " + x_idx);
+		String yLabel = cmd.getOptionValue("y-label", "Dim " + y_idx);
 
 		NpyArray arr;
 		try {
@@ -236,6 +240,9 @@ public class NPYScatter {
 				x_idx, 
 				y_idx, 
 				"");
+		
+		scatter.getCoordsys().setxAxisLabel(xLabel);
+		scatter.getCoordsys().setyAxisLabel(yLabel);
 		
 		DefaultColorMap cmap = Arrays.stream(DefaultColorMap.values())
 				.filter(candidate -> candidate.name().contains(cmapName))
