@@ -261,7 +261,7 @@ public class NPYScatter {
 					}
 				});
 			} else if(disctretecmap && !integerValued) {
-				System.err.println("Warning: color values are not integer valued but colormap is discrete. Mapping unique values to discrete discrete colors");
+				System.err.println("Warning: color values are not integer valued but colormap is discrete. Mapping unique values to discrete colors");
 				// find unique values and map to discrete colors
 				double[] uniqueValues = Arrays.stream(colorValues).distinct().toArray();
 				Arrays.sort(uniqueValues);
