@@ -16,9 +16,10 @@ Create a file `npyscatter`, containing
 #!/usr/bin/env bash
 java -jar ~/git/NPYScatter/target/npyscatter-0.0.1-SNAPSHOT-jar-with-dependencies.jar $*
 ```
-make it executable, then move it to /~.local/bin/ which should be on your PATH by default.
+make it executable, then move it to ~/.local/bin/ which should be on your PATH by default.
 ```bash
-mv npyscatter ~/.local/bin/
+chmod a+w npyscatter
+mv npyscatter ~/.local/bin/ # or ~/bin/ or another directory included on $PATH that you can write to
 ```
 
 ## Brushing & Linking via IPC
