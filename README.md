@@ -1,5 +1,9 @@
 # NPYScatter
-Application for viewing .npy (numpy array) files in a scatter plot.
+Application for viewing .npy (numpy array) files in a scatter plot.  
+`npyscatter <point_coordinates.npy> [options]` or  
+`npyscatter [options] <point_coordinates.npy>` or  
+`npyscatter [options] <point_coordinates.npy> [options]`
+
 ```bash
 # basic usage
 npyscatter example_data/iris_data.npy
@@ -35,6 +39,40 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
     </td>
   </tr>
 </table>
+
+## CLI Options
+| Option | Description |
+|---|---|
+| <img width=400/> |  |
+| `-h`, `--help` | Print help message and exit.|
+| `-x`, `--x-idx <N>` | Column index for X axis (default: 0).|
+| `-y`, `--y-idx <N>` | Column index for Y axis (default: 1).|
+| `-p`, `--point-size <N>` | Point glyph scaling factor.|
+| `-s`, `--size <N,N>` | Size of the canvas <Width,Height>.|
+| `-v`, `--view <N,N,N,N>` | Coordinate view limits (view port) `<MinX,MaxX,MinY,MaxY>`. Make sure the argument is properly escaped so that negative values are not recognized as options (e.g. `'"-1,1,-1,1"'`). Defaults to bounding box of data if not provided.|
+| `-o`, `--output <path>` | Path to output file (*.png, *.svg, *.pdf). Non-interactive, export then exit.|
+| `-i`, `--ipc-file <path>` | Path to IPC file for selection exchange.|
+| `--color-values <path>` | Path to .npy file with values to be mapped to color.|
+| `--color-value-idx <N>` | Column index in color-values array (default: 0).|
+| `--cmap <name>` | Color map name (default: S_TURBO). Color map names are prefixed with **S**, **D**, **Q** indicating their type *sequential*, *diverging*, *qualitative (discrete)*. Based on the type and `color-values` array, different mapping strategies are applied.|
+| `--cmap-list` | List available color maps and exit.|
+| `--cmap-show` | Shows available color maps in a GUI.|
+| `--x-label <name>` | Label for X axis. Default is 'Dim N' where N is the x-idx.|
+| `--y-label <name>` | Label for Y axis. Default is 'Dim N' where N is the y-idx.|
+| `--jitter <N>` | Add jitter to scatter points. Value in pixels.|
+| `--no-axes` | Hide coordinate system. View stretches over whole canvas.|
+| `--fallback` | Use JPlotter fallback canvas. Use when OpenGL is not supported (e.g. MacOS).|
+
+### Color Mapping Strategies
+|Type|Array characteristics|Strategy|
+|---|---|---|
+|**S**| * | [min,max] range of values is mapped with color interpolation |
+|**D**| values >= 0 | same behavior as **S** |
+|**D**| 0 >= values | same behavior as **S** |
+|**D**| * | value 0 is used as diverging point, [-abs(values), +abs(values)] range is mapped with color interpolation |
+|**Q**| integers | every value is mapped to a color of the map, no interpolation, colors are repeated when there are more distinct values than colors |
+|**Q**| integers, min==-1 | same as general integer case, but -1 is mapped to a transparent magenta color indicating invalid/noise cluster |
+|**Q**| * | *!not recommended to be used with floating point values!* every distinct value is mapped to a color, no interpolation, colors are repeated when there are more distinct values than colors |
 
 
 ## Installation
