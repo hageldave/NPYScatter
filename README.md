@@ -13,7 +13,7 @@ npyscatter example_data/iris_data.npy -x 0 -y 2 --color-values example_data/iris
 - [Usage](#usage)
   - [Interactive Controls](#interactive-controls)
   - [CLI options](#cli-options)
-    - [Color Mapping Strategies](#color-mapping-strategies)
+    - [Color Mapping Strategies](#color-mapping)
  - [Installation](#installation)
    - [Ubuntu Script Example](#ubuntu-script-example)
 - [Brushing & Linking](#brushing--linking)
@@ -76,7 +76,8 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
 | `--no-axes` | Hide coordinate system. View stretches over whole canvas.|
 | `--fallback` | Use JPlotter fallback canvas. Use when OpenGL is not supported (e.g. MacOS).|
 
-### Color Mapping Strategies
+### Color Mapping
+The available color maps are those shipped with the [JPlotter](https://github.com/hageldave/JPlotter/wiki/Color-Maps) libarary.
 |Prefix/Type|Array characteristics|Strategy|
 |---|---|---|
 |**S** sequential| * | [min,max] range of values is mapped with color interpolation |
@@ -138,6 +139,7 @@ npyscatter data.npy -i selection.txt
 ```
 
 ## Example Snippets
+While NPYScatter already watches the selection file and reacts to changes, here are some example snippets to use for your own code to get you started.
 
 ### Java consumer
 
