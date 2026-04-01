@@ -15,7 +15,7 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
 
 <table>
   <tr>
-    <td><img width="640" height="340" src="https://github.com/user-attachments/assets/ac85317a-282e-4a37-8d32-93a5f541fe36"></td>
+    <td><img width="520" height="276" src="https://github.com/user-attachments/assets/ac85317a-282e-4a37-8d32-93a5f541fe36"></td>
     <td>
       <table>
         <tr>
