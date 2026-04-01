@@ -1,11 +1,22 @@
 # NPYScatter
 Application for viewing .npy (numpy array) files in a scatter plot.
-```
+```bash
+# basic usage
 npyscatter example_data/iris_data.npy
-npyscatter example_data/iris_data.npy --color-values example_data/iris_labels.npy --cmap SET2 -x 0 -y 2
+
+# select dimensions, colorize
+npyscatter example_data/iris_data.npy -x 0 -y 2 --color-values example_data/iris_labels.npy --cmap SET2
 ```
 
 <img width="808" height="441" alt="npyscatter" src="https://github.com/user-attachments/assets/2cbe6c9c-7a6b-4818-a8b8-f1c954302abc" />
+
+## Interactive Controls
+The coordinate system can be moved around and zoomed in and out, and a rectangular selection of points can be made (triggering highlighting).
+|Action|Key|
+|---|---|
+|Panning|`CTRL` + `LMB`|
+|Zooming|`ALT` + `SCROLL`|
+|Selecting|`SHIFT` + `LMB`|
 
 ## Installation
 
