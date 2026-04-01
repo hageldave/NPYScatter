@@ -455,9 +455,10 @@ public class NPYScatter {
 			double[][] curr_data = scatter.getDataModel().getDataChunk(0);
 			Random rand = new Random(0xC0FFEE);
 			for(int i=0; i<curr_data.length; i++) {
-				curr_data[i][x_idx] += (rand.nextDouble()*2-1)*xjitter;
-				if(x_idx != y_idx)
-					curr_data[i][y_idx] += (rand.nextDouble()*2-1)*yjitter;
+				double angle = rand.nextDouble() * 2 * Math.PI;
+				double r = Math.sqrt(0.16 + 0.84 * rand.nextDouble());
+				curr_data[i][x_idx] += Math.cos(angle) * r * xjitter;
+				curr_data[i][y_idx] += Math.sin(angle) * r * yjitter;
 			}
 			scatter.getDataModel().setDataChunk(0, curr_data);
 		}
