@@ -12,11 +12,30 @@ npyscatter example_data/iris_data.npy -x 0 -y 2 --color-values example_data/iris
 
 ## Interactive Controls
 The coordinate system can be moved around and zoomed in and out, and a rectangular selection of points can be made (triggering highlighting).
-|Action|Key|
-|---|---|
-|Panning|`CTRL` + `LMB`|
-|Zooming|`ALT` + `SCROLL`|
-|Selecting|`SHIFT` + `LMB`|
+
+<table>
+  <tr>
+    <td><img width="640" height="340" src="https://github.com/user-attachments/assets/ac85317a-282e-4a37-8d32-93a5f541fe36"></td>
+    <td>
+      <table>
+        <tr>
+          <td><b>Action</b></td>
+          <td><b>Key</b></td>
+        </tr><tr>
+          <td>Panning</td>
+          <td><code>CTRL</code> + <code>LMB</code></td>
+        </tr><tr>
+          <td>Zooming</td>
+          <td><code>ALT</code> + <code>SCROLL</code></td>
+        </tr><tr>
+          <td>Selecting</td>
+          <td><code>SHIFT</code> + <code>LMB</code></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
 
 ## Installation
 
