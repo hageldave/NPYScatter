@@ -1,9 +1,5 @@
 # NPYScatter
-Application for viewing .npy (numpy array) files in a scatter plot.  
-`npyscatter <point_coordinates.npy> [options]` or  
-`npyscatter [options] <point_coordinates.npy>` or  
-`npyscatter [options] <point_coordinates.npy> [options]`
-
+Desktop application for viewing .npy (numpy array) files in a scatter plot.  
 ```bash
 # basic usage
 npyscatter example_data/iris_data.npy
@@ -11,8 +7,25 @@ npyscatter example_data/iris_data.npy
 # select dimensions, colorize
 npyscatter example_data/iris_data.npy -x 0 -y 2 --color-values example_data/iris_labels.npy --cmap SET2
 ```
-
 <img width="808" height="441" alt="npyscatter" src="https://github.com/user-attachments/assets/2cbe6c9c-7a6b-4818-a8b8-f1c954302abc" />
+
+## Table of Contents
+- [Usage](#usage)
+  - [Interactive Controls](#interactive-controls)
+  - [CLI options](#cli-options)
+    - [Color Mapping Strategies](#color-mapping-strategies)
+ - [Installation](#installation)
+   - [Ubuntu Script Example](#ubuntu-script-example)
+- [Brushing & Linking](#brushing--linking)
+  - [Usage](#usage-1)
+  - [Example Snippets](#example-snippets)
+    - [Java Consumer](#java-consumer)
+    - [Python Consumer](#python-consumer)
+
+# Usage
+`npyscatter <point_coordinates.npy> [options]` or  
+`npyscatter [options] <point_coordinates.npy>` or  
+`npyscatter [options] <point_coordinates.npy> [options]`
 
 ## Interactive Controls
 The coordinate system can be moved around and zoomed in and out, and a rectangular selection of points can be made (triggering highlighting).
@@ -64,18 +77,18 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
 | `--fallback` | Use JPlotter fallback canvas. Use when OpenGL is not supported (e.g. MacOS).|
 
 ### Color Mapping Strategies
-|Type|Array characteristics|Strategy|
+|Prefix/Type|Array characteristics|Strategy|
 |---|---|---|
-|**S**| * | [min,max] range of values is mapped with color interpolation |
-|**D**| values >= 0 | same behavior as **S** |
-|**D**| 0 >= values | same behavior as **S** |
-|**D**| * | value 0 is used as diverging point, [-abs(values), +abs(values)] range is mapped with color interpolation |
-|**Q**| integers | every value is mapped to a color of the map, no interpolation, colors are repeated when there are more distinct values than colors |
-|**Q**| integers, min==-1 | same as general integer case, but -1 is mapped to a transparent magenta color indicating invalid/noise cluster |
-|**Q**| * | *!not recommended to be used with floating point values!* every distinct value is mapped to a color, no interpolation, colors are repeated when there are more distinct values than colors |
+|**S** sequential| * | [min,max] range of values is mapped with color interpolation |
+|**D** diverging| values >= 0 | same behavior as **S** |
+|**D** diverging| 0 >= values | same behavior as **S** |
+|**D** diverging| * | value 0 is used as diverging point, [-abs(values), +abs(values)] range is mapped with color interpolation |
+|**Q** qualitative| integers | every value is mapped to a color of the map, no interpolation, colors are repeated when there are more distinct values than colors |
+|**Q** qualitative| integers, min == -1 | same as general integer case, but -1 is mapped to a transparent magenta color indicating invalid/noise cluster |
+|**Q** qualitative| * | every distinct value is mapped to a color, no interpolation, colors are repeated when there are more distinct values than colors |
 
 
-## Installation
+# Installation
 
 NPYScatter is a Java application which is built with Maven. To build it, use
 ```
@@ -88,7 +101,7 @@ The application can then be run via `java -jar target/npyscatter-0.0.1-SNAPSHOT-
 > This way you can use a concise abbreviation like `npyscatter` as used in this readme.
 > When updating your build, nothing needs to be moved or replaced.
 
-### Ubuntu Script Example
+## Ubuntu Script Example
 Create a file `npyscatter`, containing
 ```bash
 #!/usr/bin/env bash
@@ -100,15 +113,15 @@ chmod a+x npyscatter
 mv npyscatter ~/.local/bin/ # or ~/bin/ or another directory included on $PATH that you can write to
 ```
 
-## Brushing & Linking via IPC
 
-NPYScatter implements file-based inter process communication (IPC) for brushing and linking.
+# Brushing & Linking
+NPYScatter implements file-based **inter process communication** (IPC) for brushing and linking.
 It can write the currently selected point indices to a `.npy` or text file whenever the selection changes. 
 Other applications can watch this file and react accordingly (e.g. for brushing & linking across views). 
 Infact, NPYScatter watches this file and updates the highlighted points on change accordingly. 
 This mechanism allows multiple instances of NPYScatter to be linked easily when they share the same selection file.
 
-### Usage
+## Usage
 
 Pass the file as the `-i` or `--ipc-file` option's argument when launching:
 
@@ -124,7 +137,9 @@ A plain text file can also be used.
 npyscatter data.npy -i selection.txt
 ```
 
-#### Example: Java consumer (using `WatchService`)
+## Example Snippets
+
+### Java consumer
 
 ```java
 import org.jetbrains.bio.npy.NpyFile;
@@ -169,7 +184,7 @@ watcher.close();
 > rather than blocking indefinitely.
 
 
-#### Example: Python consumer (using polling)
+### Python consumer
 
 ```python
 import numpy as np
