@@ -33,7 +33,7 @@ public class NumpyArray {
 	public double[] slice1D(Integer...coords) {
 		int dim = -1;
 		int[] coord = new int[shape.length];
-		for(int i=0; i<shape.length; i++) {
+		for(int i=0; i<coords.length; i++) {
 			if(coords[i] == null)
 				coord[dim=i] = 0;
 			else 
@@ -50,6 +50,8 @@ public class NumpyArray {
 	}
 	
 	public static int idx(int[] shape, int... coords) {
+		if(coords.length != shape.length)
+			throw new IllegalArgumentException("provided coordinates and shape are not of same dimensions.");
 		int index = 0;
 		int blocksize = 1;
 		for(int i=shape.length-1; i>=0; i--) {
