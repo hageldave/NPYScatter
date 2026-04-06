@@ -82,6 +82,7 @@ public class NPYScatter {
 		options.addOption(Option.builder().longOpt("cmap-show").desc("Shows available color maps in a GUI.").get());
 		options.addOption(Option.builder().longOpt("x-label").hasArg().argName("name").desc("Label for X axis. Default is 'Dim N' where N is the x-idx.").get());
 		options.addOption(Option.builder().longOpt("y-label").hasArg().argName("name").desc("Label for Y axis. Default is 'Dim N' where N is the y-idx.").get());
+		options.addOption(Option.builder().longOpt("draw-order").hasArg().argName("path").desc("Path to .npy file with draw order (integer array of point indices 0 to N-1 specifying the draw sequence).").get());
 		
 		HelpFormatter formatter = HelpFormatter.builder().get();
 		CommandLine cmd;
@@ -195,6 +196,7 @@ public class NPYScatter {
 		String jitter = cmd.getOptionValue("jitter");
 		String xLabel = cmd.getOptionValue("x-label", "Dim " + x_idx);
 		String yLabel = cmd.getOptionValue("y-label", "Dim " + y_idx);
+		String drawOrderPath = cmd.getOptionValue("draw-order");
 
 		NpyArray arr;
 		try {
@@ -205,6 +207,28 @@ public class NPYScatter {
 			return;
 		}
 		NumpyArray data = new NumpyArray(arr);
+		
+		final int[] order;
+		if (drawOrderPath != null) {
+			int[] loadedOrder = null;
+			try {
+				NpyArray arr_order = readNpyArray(FileSystems.getDefault().getPath(drawOrderPath));
+				loadedOrder = Arrays.stream(NumpyArray.to_double(arr_order.getData())).mapToInt(v -> (int) v).toArray();
+				if (loadedOrder.length != data.shape[0]) {
+					System.err.println("Error: draw-order length (" + loadedOrder.length + ") must match number of points (" + data.shape[0] + ").");
+					System.exit(1);
+				}
+			} catch (IOException e) {
+				System.err.println("Error reading draw order file (" + e.getClass().getSimpleName() + "): " + e.getMessage());
+				System.exit(1);
+				return;
+			}
+			order = loadedOrder;
+		} else {
+			order = IntStream.range(0, data.shape[0]).toArray();
+		}
+		final int[] invOrder = new int[order.length];
+		for (int i = 0; i < order.length; i++) invOrder[order[i]] = i;
 		
 		NumpyArray colorData = null;
 		if (colorValuesPath != null) {
@@ -235,7 +259,7 @@ public class NPYScatter {
 		ScatterPlot scatter = new ScatterPlot(fallback);
 		scatter.getDataModel().addData(
 				IntStream.range(0, data.shape[0])
-				.mapToObj(i->data.slice1D(i,null))
+				.mapToObj(i->data.slice1D(order[i], null))
 				.toArray(double[][]::new), 
 				x_idx, 
 				y_idx, 
@@ -263,7 +287,7 @@ public class NPYScatter {
 				scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
 					@Override
 					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
-						double v = colorValues[pointIdx];
+						double v = colorValues[order[pointIdx]];
 						return v < 0 ? 0x33ff00ff : cmap.getColor(((int)v)%cmap.numColors());
 					}
 				});
@@ -278,7 +302,7 @@ public class NPYScatter {
 				scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
 					@Override
 					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
-						int v = discretecolorvalues[pointIdx];
+						int v = discretecolorvalues[order[pointIdx]];
 						return cmap.getColor(v%cmap.numColors());
 					}
 				});
@@ -301,7 +325,7 @@ public class NPYScatter {
 					double div_by_range = 1.0/(cminmax[1]-cminmax[0]);
 					@Override
 					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
-						double v = (colorValues[pointIdx]-cminmax[0])*div_by_range;
+						double v = (colorValues[order[pointIdx]]-cminmax[0])*div_by_range;
 						return v < 0 ? 0x33ff00ff : cmap.interpolate(v);
 					}
 				});
@@ -366,7 +390,7 @@ public class NPYScatter {
 				@Override
 				public void selectionChanged(SortedSet<Pair<Integer, Integer>> selection) {
 					// flatten to 1D: extract the point index (second element) from each pair
-					int[] indices = selection.stream().mapToInt(pair -> pair.second).toArray();
+					int[] indices = selection.stream().mapToInt(pair -> order[pair.second]).toArray();
 					pendingWrite.set(indices);
 					exec.submit(() -> {
 						int[] to_write = pendingWrite.getAndSet(null);
@@ -383,7 +407,7 @@ public class NPYScatter {
 			IPCFileWatcher watcher = new IPCFileWatcher(ipcPath);
 			watcher.listeners.add((int[] selection) -> {
 				selectionModel.setSelection(
-						Arrays.stream(selection).mapToObj(i->Pair.of(0, i)).collect(Collectors.toList())
+						Arrays.stream(selection).map(j -> invOrder[j]).mapToObj(i->Pair.of(0, i)).collect(Collectors.toList())
 				);
 			});
 			if(ipcPath.toFile().exists()) {
