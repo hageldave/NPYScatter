@@ -259,7 +259,7 @@ public class NPYScatter {
 		ScatterPlot scatter = new ScatterPlot(fallback);
 		scatter.getDataModel().addData(
 				IntStream.range(0, data.shape[0])
-				.mapToObj(i->data.slice1D(order[i], null))
+				.mapToObj(i->data.slice1D(invOrder[i], null))
 				.toArray(double[][]::new), 
 				x_idx, 
 				y_idx, 
@@ -287,7 +287,7 @@ public class NPYScatter {
 				scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
 					@Override
 					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
-						double v = colorValues[order[pointIdx]];
+						double v = colorValues[invOrder[pointIdx]];
 						return v < 0 ? 0x33ff00ff : cmap.getColor(((int)v)%cmap.numColors());
 					}
 				});
@@ -302,7 +302,7 @@ public class NPYScatter {
 				scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
 					@Override
 					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
-						int v = discretecolorvalues[order[pointIdx]];
+						int v = discretecolorvalues[invOrder[pointIdx]];
 						return cmap.getColor(v%cmap.numColors());
 					}
 				});
@@ -325,7 +325,7 @@ public class NPYScatter {
 					double div_by_range = 1.0/(cminmax[1]-cminmax[0]);
 					@Override
 					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
-						double v = (colorValues[order[pointIdx]]-cminmax[0])*div_by_range;
+						double v = (colorValues[invOrder[pointIdx]]-cminmax[0])*div_by_range;
 						return v < 0 ? 0x33ff00ff : cmap.interpolate(v);
 					}
 				});
@@ -390,7 +390,7 @@ public class NPYScatter {
 				@Override
 				public void selectionChanged(SortedSet<Pair<Integer, Integer>> selection) {
 					// flatten to 1D: extract the point index (second element) from each pair
-					int[] indices = selection.stream().mapToInt(pair -> order[pair.second]).toArray();
+					int[] indices = selection.stream().mapToInt(pair -> invOrder[pair.second]).toArray();
 					pendingWrite.set(indices);
 					exec.submit(() -> {
 						int[] to_write = pendingWrite.getAndSet(null);
@@ -407,7 +407,7 @@ public class NPYScatter {
 			IPCFileWatcher watcher = new IPCFileWatcher(ipcPath);
 			watcher.listeners.add((int[] selection) -> {
 				selectionModel.setSelection(
-						Arrays.stream(selection).map(j -> invOrder[j]).mapToObj(i->Pair.of(0, i)).collect(Collectors.toList())
+						Arrays.stream(selection).map(j -> order[j]).mapToObj(i->Pair.of(0, i)).collect(Collectors.toList())
 				);
 			});
 			if(ipcPath.toFile().exists()) {
