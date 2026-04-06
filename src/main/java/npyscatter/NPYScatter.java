@@ -259,7 +259,7 @@ public class NPYScatter {
 		ScatterPlot scatter = new ScatterPlot(fallback);
 		scatter.getDataModel().addData(
 				IntStream.range(0, data.shape[0])
-				.mapToObj(i->data.slice1D(invOrder[i], null))
+				.mapToObj(i->data.slice1D(order[i], null))
 				.toArray(double[][]::new), 
 				x_idx, 
 				y_idx, 
