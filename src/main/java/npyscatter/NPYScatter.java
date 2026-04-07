@@ -82,7 +82,7 @@ public class NPYScatter {
 		options.addOption(Option.builder().longOpt("cmap-show").desc("Shows available color maps in a GUI.").get());
 		options.addOption(Option.builder().longOpt("x-label").hasArg().argName("name").desc("Label for X axis. Default is 'Dim N' where N is the x-idx.").get());
 		options.addOption(Option.builder().longOpt("y-label").hasArg().argName("name").desc("Label for Y axis. Default is 'Dim N' where N is the y-idx.").get());
-		options.addOption(Option.builder().longOpt("draw-order").hasArg().argName("path").desc("Path to .npy file with draw order (integer array of point indices 0 to N-1 specifying the draw sequence).").get());
+		options.addOption(Option.builder().longOpt("draw-order").hasArg().argName("path or seed").desc("Path to .npy file with draw order (integer array of point indices 0 to N-1 specifying the draw sequence) or random seed to generate a permutation.").get());
 		
 		HelpFormatter formatter = HelpFormatter.builder().get();
 		CommandLine cmd;
@@ -210,20 +210,35 @@ public class NPYScatter {
 		
 		final int[] order;
 		if (drawOrderPath != null) {
-			int[] loadedOrder = null;
-			try {
-				NpyArray arr_order = readNpyArray(FileSystems.getDefault().getPath(drawOrderPath));
-				loadedOrder = Arrays.stream(NumpyArray.to_double(arr_order.getData())).mapToInt(v -> (int) v).toArray();
-				if (loadedOrder.length != data.shape[0]) {
-					System.err.println("Error: draw-order length (" + loadedOrder.length + ") must match number of points (" + data.shape[0] + ").");
+			if(drawOrderPath.endsWith(".npy")) {
+				int[] loadedOrder = null;
+				try {
+					NpyArray arr_order = readNpyArray(FileSystems.getDefault().getPath(drawOrderPath));
+					loadedOrder = Arrays.stream(NumpyArray.to_double(arr_order.getData())).mapToInt(v -> (int) v).toArray();
+					if (loadedOrder.length != data.shape[0]) {
+						System.err.println("Error: draw-order length (" + loadedOrder.length + ") must match number of points (" + data.shape[0] + ").");
+						System.exit(1);
+					}
+				} catch (IOException e) {
+					System.err.println("Error reading draw order file (" + e.getClass().getSimpleName() + "): " + e.getMessage());
 					System.exit(1);
+					return;
 				}
-			} catch (IOException e) {
-				System.err.println("Error reading draw order file (" + e.getClass().getSimpleName() + "): " + e.getMessage());
-				System.exit(1);
-				return;
+				order = loadedOrder;
+			} else {
+				// try to parse as random seed
+				try {
+					long seed = drawOrderPath.startsWith("0x") ? Long.parseLong(drawOrderPath.substring(2), 16) : Long.parseLong(drawOrderPath);
+					Random rand = new Random(seed);
+					int[] randvalues = rand.ints().limit(data.shape[0]).toArray();
+					order = argsort(randvalues);
+				} catch (NumberFormatException e) {
+					System.err.println("Error: draw-order argument must be a path to a .npy file or a random seed (long integer). " + e.getMessage());
+					printHelp(formatter,options, false);
+					System.exit(1);
+					return;
+				}
 			}
-			order = loadedOrder;
 		} else {
 			order = IntStream.range(0, data.shape[0]).toArray();
 		}
@@ -392,6 +407,7 @@ public class NPYScatter {
 				public void selectionChanged(SortedSet<Pair<Integer, Integer>> selection) {
 					// flatten to 1D: extract the point index (second element) from each pair
 					int[] indices = selection.stream().mapToInt(pair -> order[pair.second]).toArray();
+					Arrays.sort(indices);
 					pendingWrite.set(indices);
 					exec.submit(() -> {
 						int[] to_write = pendingWrite.getAndSet(null);
@@ -570,6 +586,14 @@ public class NPYScatter {
 	/* Utility method that adds throws declaration cause NpyFile is kotlin and does not specify it correctly */
 	public static NpyArray readNpyArray(Path file) throws IOException {
 		return NpyFile.read(file, 1024);
+	}
+	
+	public static int[] argsort(int[] arr) {
+		return IntStream.range(0, arr.length)
+				.boxed()
+				.sorted((i, j) -> Integer.compare(arr[i], arr[j]))
+				.mapToInt(Integer::intValue)
+				.toArray();
 	}
 
 }
