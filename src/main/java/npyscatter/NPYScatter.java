@@ -62,6 +62,86 @@ public class NPYScatter {
 	static final String CMAP_LIST = "cmap-list";
 	static final String CMAP_SHOW = "cmap-show";
 	
+	
+	static void showColorMaps() {
+		int numcmaps = DefaultColorMap.values().length;
+		int h = 30;
+		int w = 300;
+		Img img = new Img(w, h*numcmaps);
+		for(int i=0; i<numcmaps; i++) {
+			DefaultColorMap cmap = DefaultColorMap.values()[i];
+			Img cmapimg = cmap.toImg(w, h, true, !cmap.name().startsWith("Q"));
+			cmapimg.paint(g2d->{
+				g2d.setColor(new Color(0x66ffffff, true));
+				g2d.setFont(FontProvider.getUbuntuMono(14, Font.PLAIN));
+				Rectangle stringBounds = g2d.getFontMetrics().getStringBounds(cmap.name(), g2d).getBounds();
+				g2d.fillRect(3, 27-stringBounds.height, 4+stringBounds.width, stringBounds.height);
+				g2d.setColor(java.awt.Color.BLACK);
+				g2d.drawString(cmap.name(), 5, 24);
+			});
+			cmapimg.copyArea(0, 0, w, h, img, 0, i*h);
+		}
+		ImageFrame frame = new ImageFrame();
+		frame.setTitle("NPYS - Color Maps");
+		frame.setPreferredSize(new Dimension(w,1000));
+		frame.useDefaultSettings();
+		SwingUtilities.invokeLater( () -> {
+			frame.setImg(img);
+			frame.setVisible(true);
+		});
+	}
+	
+	
+	static int[] loadOrGenerateDrawOrder(String drawOrderSpec, int requiredLen) {
+		if (drawOrderSpec != null) {
+			if(drawOrderSpec.endsWith(".npy")) {
+				int[] loadedOrder = null;
+				try {
+					NpyArray arr_order = readNpyArray(FileSystems.getDefault().getPath(drawOrderSpec));
+					loadedOrder = Arrays.stream(NumpyArray.to_double(arr_order.getData())).mapToInt(v -> (int) v).toArray();
+					if (loadedOrder.length != requiredLen) {
+						System.err.println("Error: draw-order length (" + loadedOrder.length + ") must match number of points (" + requiredLen + ").");
+						System.exit(1);
+					}
+				} catch (IOException e) {
+					System.err.println("Error reading draw order file (" + e.getClass().getSimpleName() + "): " + e.getMessage());
+					System.exit(1);
+					return null;
+				}
+				return loadedOrder;
+			} else {
+				// try to parse as random seed
+				long seed = drawOrderSpec.startsWith("0x") ? Long.parseLong(drawOrderSpec.substring(2), 16) : Long.parseLong(drawOrderSpec);
+				Random rand = new Random(seed);
+				int[] randvalues = rand.ints().limit(requiredLen).toArray();
+				return argsort(randvalues);
+			}
+		} else {
+			return IntStream.range(0, requiredLen).toArray();
+		}
+	}
+	
+	static double[] loadColorValues(Path colorValuesPath, int colorValueIdx) {
+		NumpyArray colorData = null;
+		if (colorValuesPath != null) {
+			try {
+				NpyArray arr_color = readNpyArray(colorValuesPath);
+				int[] shape = arr_color.getShape();
+				if(shape.length == 1) {
+					colorData = new NumpyArray(NumpyArray.to_double(arr_color.getData()), new int[]{shape[0], 1});
+				} else {
+					colorData = new NumpyArray(arr_color);
+				}
+			} catch (IOException e) {
+				System.err.println("Error reading color values file (" + e.getClass().getSimpleName() + "): " + e.getMessage());
+				System.exit(1);
+				return null;
+			}
+		}
+		return colorData == null ? null:colorData.slice1D(null, colorValueIdx);
+	}
+	
+	
 	public static void main(String[] args) {
 		// Define all options
 		Options options = new Options();
@@ -97,31 +177,7 @@ public class NPYScatter {
 		}
 		
 		if(cmd.hasOption(CMAP_SHOW)) {
-			int numcmaps = DefaultColorMap.values().length;
-			int h = 30;
-			int w = 300;
-			Img img = new Img(w, h*numcmaps);
-			for(int i=0; i<numcmaps; i++) {
-				DefaultColorMap cmap = DefaultColorMap.values()[i];
-				Img cmapimg = cmap.toImg(w, h, true, !cmap.name().startsWith("Q"));
-				cmapimg.paint(g2d->{
-					g2d.setColor(new Color(0x66ffffff, true));
-					g2d.setFont(FontProvider.getUbuntuMono(14, Font.PLAIN));
-					Rectangle stringBounds = g2d.getFontMetrics().getStringBounds(cmap.name(), g2d).getBounds();
-					g2d.fillRect(3, 27-stringBounds.height, 4+stringBounds.width, stringBounds.height);
-					g2d.setColor(java.awt.Color.BLACK);
-					g2d.drawString(cmap.name(), 5, 24);
-				});
-				cmapimg.copyArea(0, 0, w, h, img, 0, i*h);
-			}
-			ImageFrame frame = new ImageFrame();
-			frame.setTitle("NPYS - Color Maps");
-			frame.setPreferredSize(new Dimension(w,1000));
-			frame.useDefaultSettings();
-			SwingUtilities.invokeLater( () -> {
-				frame.setImg(img);
-				frame.setVisible(true);
-			});
+			showColorMaps();
 			return;
 		}
 
@@ -145,59 +201,24 @@ public class NPYScatter {
 		}
 		
 
-		int x_idx;
-		int y_idx;
-		int colorValueIdx;
-		try {
-			x_idx = Integer.parseInt(cmd.getOptionValue("x-idx", "0"));
-			y_idx = Integer.parseInt(cmd.getOptionValue("y-idx", "1"));
-			colorValueIdx = Integer.parseInt(cmd.getOptionValue("color-value-idx", "0"));
-		} catch (NumberFormatException e) {
-			System.err.println("Error: --x-idx, --y-idx, and --color-value-idx must be integers. " + e.getMessage());
-			printHelp(formatter,options, false);
-			System.exit(1);
-			return;
-		}
-		int width=400;
-		int height=400;
-		String size = cmd.getOptionValue("size");
-		if(size != null) {
-			try {
-				width = Integer.parseInt(size.split(",")[0]);
-				height= Integer.parseInt(size.split(",")[1]);
-			} catch(Exception e) {
-				System.err.println("Error: size argument malformed. " + e.getMessage());
-				printHelp(formatter,options, false);
-				System.exit(1);
-			}
-		}
-		double[] view = null;
-		String viewStr = cmd.getOptionValue("view");
-		if(viewStr != null) {
-			try {
-				view = Arrays.stream(viewStr.split(",")).mapToDouble(Double::parseDouble).toArray();
-				if(view.length != 4) {
-					throw new IllegalArgumentException("Expected 4 comma separated numbers for view limits.");
-				}
-			} catch(Exception e) {
-				System.err.println("Error: view argument malformed. " + e.getMessage());
-				printHelp(formatter,options, false);
-				System.exit(1);
-			}
-		}
-		
-		String colorValuesPath = cmd.getOptionValue("color-values");
-		String cmapName = cmd.getOptionValue("cmap", "S_TURBO");
-		String ipcFilePath = cmd.getOptionValue("ipc-file");
-		String pointSizeStr = cmd.getOptionValue("point-size");
-		boolean fallback = cmd.hasOption("fallback");
-		boolean noAxes = cmd.hasOption("no-axes");
-		String outputPath = cmd.getOptionValue("output");
-		String jitter = cmd.getOptionValue("jitter");
-		String xLabel = cmd.getOptionValue("x-label", "Dim " + x_idx);
-		String yLabel = cmd.getOptionValue("y-label", "Dim " + y_idx);
-		String drawOrderPath = cmd.getOptionValue("draw-order");
+		int x_idx = Configuration.x_idx.get();
+		int y_idx = Configuration.y_idx.get();
+		int colorValueIdx = Configuration.color_value_idx.get();
+		int[] size = Configuration.size.get();
+		double[] view = Configuration.view.get();
+		Path colorValuesPath = Configuration.color_values.get();
+		DefaultColorMap cmap = Configuration.cmap.get();
+		Path ipcFilePath = Configuration.ipc_file.get();
+		double pointsize = Configuration.point_size.get();
+		boolean fallback = Configuration.fallback.get();
+		boolean noAxes = Configuration.no_axes.get();
+		Path outputPath = Configuration.output.get();
+		Double jitter = Configuration.jitter.get();
+		String xLabel = Configuration.x_label.getOrElse("Dim " + x_idx);
+		String yLabel = Configuration.y_label.getOrElse("Dim " + y_idx);
+		String drawOrderSpec = Configuration.draw_order.get();
 
+		
 		NpyArray arr;
 		try {
 			arr = readNpyArray(FileSystems.getDefault().getPath(coordsFile));
@@ -208,68 +229,18 @@ public class NPYScatter {
 		}
 		NumpyArray data = new NumpyArray(arr);
 		
-		final int[] order;
-		if (drawOrderPath != null) {
-			if(drawOrderPath.endsWith(".npy")) {
-				int[] loadedOrder = null;
-				try {
-					NpyArray arr_order = readNpyArray(FileSystems.getDefault().getPath(drawOrderPath));
-					loadedOrder = Arrays.stream(NumpyArray.to_double(arr_order.getData())).mapToInt(v -> (int) v).toArray();
-					if (loadedOrder.length != data.shape[0]) {
-						System.err.println("Error: draw-order length (" + loadedOrder.length + ") must match number of points (" + data.shape[0] + ").");
-						System.exit(1);
-					}
-				} catch (IOException e) {
-					System.err.println("Error reading draw order file (" + e.getClass().getSimpleName() + "): " + e.getMessage());
-					System.exit(1);
-					return;
-				}
-				order = loadedOrder;
-			} else {
-				// try to parse as random seed
-				try {
-					long seed = drawOrderPath.startsWith("0x") ? Long.parseLong(drawOrderPath.substring(2), 16) : Long.parseLong(drawOrderPath);
-					Random rand = new Random(seed);
-					int[] randvalues = rand.ints().limit(data.shape[0]).toArray();
-					order = argsort(randvalues);
-				} catch (NumberFormatException e) {
-					System.err.println("Error: draw-order argument must be a path to a .npy file or a random seed (long integer). " + e.getMessage());
-					printHelp(formatter,options, false);
-					System.exit(1);
-					return;
-				}
-			}
-		} else {
-			order = IntStream.range(0, data.shape[0]).toArray();
-		}
+		final int[] order = loadOrGenerateDrawOrder(drawOrderSpec, data.shape[0]);
 		final int[] invOrder = new int[order.length];
-		for (int i = 0; i < order.length; i++) invOrder[order[i]] = i;
+		for (int i = 0; i < order.length; i++) 
+			invOrder[order[i]] = i;
 		
-		NumpyArray colorData = null;
-		if (colorValuesPath != null) {
-			try {
-				NpyArray arr_color = readNpyArray(FileSystems.getDefault().getPath(colorValuesPath));
-				if(arr_color.getShape().length == 1) {
-					colorData = new NumpyArray(NumpyArray.to_double(arr_color.getData()), new int[]{data.shape[0], 1});
-				} else {
-					colorData = new NumpyArray(arr_color);
-				}
-			} catch (IOException e) {
-				System.err.println("Error reading color values file (" + e.getClass().getSimpleName() + "): " + e.getMessage());
-				System.exit(1);
-				return;
-			}
-		}
-		double[] colorValues;
+		double[] colorValues = loadColorValues(colorValuesPath, colorValueIdx);
 		double[] cminmax = {0,1};
-		if(colorData != null) {
-			int cidx = colorValueIdx;
-			cminmax[0] = colorData.min(null,cidx);
-			cminmax[1] = colorData.max(null,cidx);
-			colorValues = colorData.slice1D(null,cidx);
-		} else {
-			colorValues = null;
+		if(colorValues != null) {
+			cminmax[0] = Arrays.stream(colorValues).min().getAsDouble();
+			cminmax[1] = Arrays.stream(colorValues).min().getAsDouble();
 		}
+		
 		
 		ScatterPlot scatter = new ScatterPlot(fallback);
 		scatter.getDataModel().addData(
@@ -284,18 +255,7 @@ public class NPYScatter {
 		scatter.getCoordsys().setxAxisLabel(xLabel);
 		scatter.getCoordsys().setyAxisLabel(yLabel);
 		
-		DefaultColorMap cmap = Arrays.stream(DefaultColorMap.values())
-				.filter(candidate -> candidate.name().contains(cmapName))
-				.findFirst()
-				.orElse(null);
-		if (cmap == null) {
-			System.err.println("cmap " + cmapName + " is unknown. Available names are:");
-			Arrays.stream(DefaultColorMap.values())
-			.map(DefaultColorMap::name)
-			.forEach(System.err::println);
-			System.exit(1);
-		}
-		if(colorData != null){
+		if(colorValues != null){
 			// check if color values are integer valued and colormap is discrete
 			boolean integerValued = Arrays.stream(colorValues).allMatch(v -> v == Math.floor(v));
 			boolean disctretecmap = cmap.name().startsWith("Q");
@@ -353,23 +313,14 @@ public class NPYScatter {
 			scatter.alignCoordsys(1.1);
 		}
 		
-		if (pointSizeStr != null) {
-			double s;
-			try {
-				s = Double.parseDouble(pointSizeStr);
-			} catch (NumberFormatException e) {
-				System.err.println("Error: --point-size must be a number. " + e.getMessage());
-				printHelp(formatter,options, false);
-				System.exit(1);
-				return;
-			}
+		if (pointsize != 1.0) {
 			for(CompleteRenderer r : Arrays.asList(
 					scatter.getContent(), 
 					scatter.getContentLayer0(),
 					scatter.getContentLayer1(),
 					scatter.getContentLayer2()))
 			{
-				r.points.setGlyphScaling(s);
+				r.points.setGlyphScaling(pointsize);
 			}
 		}
 		SimpleSelectionModel<Pair<Integer, Integer>> selectionModel = new SimpleSelectionModel<Pair<Integer,Integer>>();
@@ -396,8 +347,7 @@ public class NPYScatter {
 		});
 		
 		// file based IPC stuff
-		Path ipcPath = ipcFilePath != null ? FileSystems.getDefault().getPath(ipcFilePath) : null;
-		if(ipcPath != null) {
+		if(ipcFilePath != null) {
 			selectionModel.addSelectionListener(new SimpleSelectionListener<Pair<Integer,Integer>>() {
 				
 				private ExecutorService exec = Executors.newSingleThreadExecutor();
@@ -414,14 +364,14 @@ public class NPYScatter {
 						if(to_write == null)
 							return; // another job already writing this selection, skip
 						try {
-							writeSelectionToFile(ipcPath, to_write);
+							writeSelectionToFile(ipcFilePath, to_write);
 						} catch (IOException e) {
 							System.err.println("IPC write failed: " + e.getMessage());
 						}
 					});
 				}
 			});
-			IPCFileWatcher watcher = new IPCFileWatcher(ipcPath);
+			IPCFileWatcher watcher = new IPCFileWatcher(ipcFilePath);
 			watcher.listeners.add((int[] selection) -> {
 				selectionModel.setSelection(
 						Arrays.stream(selection)
@@ -430,9 +380,9 @@ public class NPYScatter {
 						.collect(Collectors.toList())
 				);
 			});
-			if(ipcPath.toFile().exists()) {
+			if(ipcFilePath.toFile().exists()) {
 				try {
-					int[] initialSelection = IPCFileWatcher.readIndices(ipcPath);
+					int[] initialSelection = IPCFileWatcher.readIndices(ipcFilePath);
 					watcher.notifyListeners(initialSelection);
 				} catch (IOException e) {
 					System.err.println("Error reading initial selection from IPC file ("+ e.getClass().getSimpleName() +"): " + e.getMessage());
@@ -442,7 +392,7 @@ public class NPYScatter {
 		}
 		
 		JFrame frame = createJFrameWithBoilerPlate("NPYS - " + (coordsFile.length() > 30 ? "..." + coordsFile.substring(coordsFile.length()-(30-3)) : coordsFile));
-		scatter.getCanvas().asComponent().setPreferredSize(new Dimension(width, height));
+		scatter.getCanvas().asComponent().setPreferredSize(new Dimension(size[0], size[1]));
 		frame.getContentPane().add(scatter.getCanvas().asComponent());
 		scatter.getCanvas().addCleanupOnWindowClosingListener(frame);
 		
@@ -466,15 +416,6 @@ public class NPYScatter {
 		});
 		
 		if(jitter != null) {
-			double jitterVal;
-			try {
-				jitterVal = Double.parseDouble(jitter);
-			} catch (NumberFormatException e) {
-				System.err.println("Error: --jitter must be a number. " + e.getMessage());
-				printHelp(formatter,options, false);
-				System.exit(1);
-				return;
-			}
 			// determine viewport of scatter points
 			Rectangle2D[] viewport = {null};
 			scatter.getCanvas().scheduleRepaint();
@@ -493,8 +434,8 @@ public class NPYScatter {
 			}
 			// compute jitter magnitudes
 			Rectangle2D view_rect = scatter.getCoordsys().getCoordinateView();
-			double xjitter = jitterVal * view_rect.getWidth() / viewport[0].getWidth();
-			double yjitter = jitterVal * view_rect.getHeight() / viewport[0].getHeight();
+			double xjitter = jitter * view_rect.getWidth() / viewport[0].getWidth();
+			double yjitter = jitter * view_rect.getHeight() / viewport[0].getHeight();
 			// apply jitter by overriding the scatter plot's point positions with a random translation
 			double[][] curr_data = scatter.getDataModel().getDataChunk(0);
 			Random rand = new Random(0xC0FFEE);
@@ -511,14 +452,14 @@ public class NPYScatter {
 			scatter.getCanvas().scheduleRepaint();
 			SwingUtilities.invokeLater(() -> {
 				try {
-					if(outputPath.toLowerCase().endsWith(".png")) {
-						ExportUtil.canvasToPNG(scatter.getCanvas(), outputPath);
+					if(outputPath.toString().toLowerCase().endsWith(".png")) {
+						ExportUtil.canvasToPNG(scatter.getCanvas(), outputPath.toString());
 					}
-					else if(outputPath.toLowerCase().endsWith(".svg")) {
-						ExportUtil.canvasToSVG(scatter.getCanvas(), outputPath);
+					else if(outputPath.toString().toLowerCase().endsWith(".svg")) {
+						ExportUtil.canvasToSVG(scatter.getCanvas(), outputPath.toString());
 					}
-					else if(outputPath.toLowerCase().endsWith(".pdf")) {
-						ExportUtil.canvasToPDF(scatter.getCanvas(), outputPath);
+					else if(outputPath.toString().toLowerCase().endsWith(".pdf")) {
+						ExportUtil.canvasToPDF(scatter.getCanvas(), outputPath.toString());
 					}
 					else {
 						System.err.println("Error: output file extension not recognized. Supported extensions are .png, .svg, and .pdf");

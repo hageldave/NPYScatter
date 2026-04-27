@@ -48,7 +48,7 @@ public enum Configuration {
 			"Point glyph scaling factor.",
 			"N",
 			Double::parseDouble, Configuration::requireNonNegative,
-			1f),
+			1.0d),
 	fallback(
 			"Use JPlotter fallback canvas.",
 			"bool",
@@ -122,6 +122,11 @@ public enum Configuration {
 	@SuppressWarnings("unchecked")
 	public <T> T get() {
 		return (T) value;
+	}
+	
+	public <T> T getOrElse(T defaultVal) {
+		T v = get();
+		return v != null ? v:defaultVal; 
 	}
 	
 	private static String identity(String value) {
