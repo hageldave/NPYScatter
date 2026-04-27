@@ -58,31 +58,19 @@ import hageldave.jplotter.util.Pair;
 
 public class NPYScatter {
 	
+	static final String HELP = "help";
+	static final String CMAP_LIST = "cmap-list";
+	static final String CMAP_SHOW = "cmap-show";
+	
 	public static void main(String[] args) {
 		// Define all options
 		Options options = new Options();
-		options.addOption(Option.builder("h").longOpt("help").desc("Print this help message and exit.").get());
-		options.addOption(Option.builder("x").longOpt("x-idx").hasArg().argName("N").desc("Column index for X axis (default: 0).").get());
-		options.addOption(Option.builder("y").longOpt("y-idx").hasArg().argName("N").desc("Column index for Y axis (default: 1).").get());
-		options.addOption(Option.builder().longOpt("color-values").hasArg().argName("path").desc("Path to .npy file with values to be mapped to color.").get());
-		options.addOption(Option.builder().longOpt("color-value-idx").hasArg().argName("N").desc("Column index in color-values array (default: 0).").get());
-		options.addOption(Option.builder().longOpt("cmap").hasArg().argName("name").desc("Color map name (default: S_TURBO). Use --cmap-list to get a list of available color maps.").get());
-		options.addOption(Option.builder("i").longOpt("ipc-file").hasArg().argName("path").desc("Path to IPC file for selection exchange.").get());
-		options.addOption(Option.builder("p").longOpt("point-size").hasArg().argName("N").desc("Point glyph scaling factor.").get());
-		options.addOption(Option.builder().longOpt("fallback").desc("Use JPlotter fallback canvas.").get());
-		options.addOption(Option.builder().longOpt("no-axes").desc("Hide coordinate axes.").get());
-		options.addOption(Option.builder("s").longOpt("size").hasArg().argName("N,N").desc("Size of the canvas <Width,Height>.").get());
-		options.addOption(Option.builder("v").longOpt("view").hasArg().argName("N,N,N,N").desc("Coordinate view limits (view port) <MinX,MaxX,MinY,MaxY>. " + 
-				"Make sure the argument is properly escaped so that negative values are not recognized as options (e.g. '\"-1,1,-1,1\"'). " + 
-				"Defaults to bounding box of data if not provided.")
-				.get());
-		options.addOption(Option.builder("o").longOpt("output").hasArg().argName("path").desc("Path to output file (*.png, *.svg, *.pdf).").get());
-		options.addOption(Option.builder().longOpt("jitter").hasArg().argName("N").desc("Add jitter to scatter points. Value in pixels.").get());
-		options.addOption(Option.builder().longOpt("cmap-list").desc("List available color maps and exit.").get());
-		options.addOption(Option.builder().longOpt("cmap-show").desc("Shows available color maps in a GUI.").get());
-		options.addOption(Option.builder().longOpt("x-label").hasArg().argName("name").desc("Label for X axis. Default is 'Dim N' where N is the x-idx.").get());
-		options.addOption(Option.builder().longOpt("y-label").hasArg().argName("name").desc("Label for Y axis. Default is 'Dim N' where N is the y-idx.").get());
-		options.addOption(Option.builder().longOpt("draw-order").hasArg().argName("path or seed").desc("Path to .npy file with draw order (integer array of point indices 0 to N-1 specifying the draw sequence) or random seed to generate a permutation.").get());
+		options.addOption(Option.builder("h").longOpt(HELP).desc("Print this help message and exit.").get());
+		for(Configuration c: Configuration.values()) {
+			options.addOption(c.toOption());
+		}
+		options.addOption(Option.builder().longOpt(CMAP_LIST).desc("List available color maps and exit.").get());
+		options.addOption(Option.builder().longOpt(CMAP_SHOW).desc("Shows available color maps in a GUI.").get());
 		
 		HelpFormatter formatter = HelpFormatter.builder().get();
 		CommandLine cmd;
@@ -95,12 +83,12 @@ public class NPYScatter {
 			return;
 		}
 
-		if (cmd.hasOption("help")) {
+		if (cmd.hasOption(HELP)) {
 			printHelp(formatter,options,true);
 			System.exit(0);
 		}
 		
-		if (cmd.hasOption("cmap-list")) {
+		if (cmd.hasOption(CMAP_LIST)) {
 			System.out.println("Available color maps (can also specify only part of the name, first match will be used):");
 			Arrays.stream(DefaultColorMap.values())
 			.map(DefaultColorMap::name)
@@ -108,7 +96,7 @@ public class NPYScatter {
 			System.exit(0);
 		}
 		
-		if(cmd.hasOption("cmap-show")) {
+		if(cmd.hasOption(CMAP_SHOW)) {
 			int numcmaps = DefaultColorMap.values().length;
 			int h = 30;
 			int w = 300;
@@ -144,6 +132,18 @@ public class NPYScatter {
 			System.exit(1);
 		}
 		String coordsFile = positional[0];
+		
+		for(Configuration c: Configuration.values()){
+			try {
+				c.setValueFromCmdline(cmd);
+				c.validateValue();
+			} catch(RuntimeException e) {
+				System.err.println("Error parsing argument for --" + c.longOption + ": " + e.getMessage());
+				printHelp(formatter,options,false);
+				System.exit(1);
+			}
+		}
+		
 
 		int x_idx;
 		int y_idx;
