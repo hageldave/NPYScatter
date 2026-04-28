@@ -60,6 +60,8 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
 | `-h`, `--help` | Print help message and exit.|
 | `-x`, `--x-idx <N>` | Column index for X axis (default: 0).|
 | `-y`, `--y-idx <N>` | Column index for Y axis (default: 1).|
+| `--x-label <name>` | Label for X axis. Default is 'Dim N' where N is the x-idx.|
+| `--y-label <name>` | Label for Y axis. Default is 'Dim N' where N is the y-idx.|
 | `-p`, `--point-size <N>` | Point glyph scaling factor.|
 | `-s`, `--size <N,N>` | Size of the canvas <Width,Height>.|
 | `-v`, `--view <N,N,N,N>` | Coordinate view limits (view port) `<MinX,MaxX,MinY,MaxY>`. Make sure the argument is properly escaped so that negative values are not recognized as options (e.g. `'"-1,1,-1,1"'`). Defaults to bounding box of data if not provided.|
@@ -70,12 +72,10 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
 | `--cmap <name>` | Color map name (default: S_TURBO). Color map names are prefixed with **S**, **D**, **Q** indicating their type *sequential*, *diverging*, *qualitative (discrete)*. Based on the type and `color-values` array, different mapping strategies are applied.|
 | `--cmap-list` | List available color maps and exit.|
 | `--cmap-show` | Shows available color maps in a GUI.|
-| `--x-label <name>` | Label for X axis. Default is 'Dim N' where N is the x-idx.|
-| `--y-label <name>` | Label for Y axis. Default is 'Dim N' where N is the y-idx.|
 | `--jitter <N>` | Add jitter to scatter points. Value in pixels.|
 | `--draw-order <path/seed>` | Path to .npy file with point index ordering OR random seed to generate a permutation (long, '0x' prefix for hex otherwise decimal).|
-| `--no-axes` | Hide coordinate system. View stretches over whole canvas.|
-| `--fallback` | Use JPlotter fallback canvas. Use when OpenGL is not supported (e.g. MacOS).|
+| `--no-axes <true|false>` | Hide coordinate system. View stretches over whole canvas.|
+| `--fallback <true|false>` | Use JPlotter fallback canvas. Use when OpenGL is not supported (e.g. MacOS).|
 
 ### Color Mapping
 The available color maps are those shipped with the [JPlotter](https://github.com/hageldave/JPlotter/wiki/Color-Maps) libarary.
