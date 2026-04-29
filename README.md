@@ -84,7 +84,7 @@ The available color maps are those shipped with the [JPlotter](https://github.co
 |**S** sequential| * | [min,max] range of values is mapped with color interpolation |
 |**D** diverging| values >= 0 | same behavior as **S** |
 |**D** diverging| 0 >= values | same behavior as **S** |
-|**D** diverging| * | value 0 is used as diverging point, [-abs(values), +abs(values)] range is mapped with color interpolation |
+|**D** diverging| * | value 0 is used as diverging point, [-max(abs(values)), +max(abs(values))] range is mapped with color interpolation |
 |**Q** qualitative| integers | every value is mapped to a color of the map, no interpolation, colors are repeated when there are more distinct values than colors |
 |**Q** qualitative| integers, min == -1 | same as general integer case, but -1 is mapped to a transparent magenta color indicating invalid/noise cluster |
 |**Q** qualitative| * | every distinct value is mapped to a color, no interpolation, colors are repeated when there are more distinct values than colors |
