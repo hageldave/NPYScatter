@@ -526,9 +526,17 @@ public class NPYScatter {
 			} catch (AtomicMoveNotSupportedException e) {
 				atomicmoveImpossible = true;
 			}
+			boolean moveImpossible = false;
 			if(atomicmoveImpossible) {
 				// fallback to non-atomic move
-				Files.move(tmp, ipcFile, StandardCopyOption.REPLACE_EXISTING);
+				try {
+					Files.move(tmp, ipcFile, StandardCopyOption.REPLACE_EXISTING);
+				} catch (IOException e) {
+					moveImpossible = true;
+				}
+			}
+			if (moveImpossible) {
+				Files.copy(tmp, ipcFile, StandardCopyOption.REPLACE_EXISTING);
 			}
 		} finally {
 			// Clean up the temp file in case the move failed
