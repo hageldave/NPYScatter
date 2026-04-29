@@ -1,15 +1,10 @@
 package npyscatter;
 
 import java.io.IOException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardWatchEventKinds;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
 import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -22,36 +17,33 @@ public class IPCFileWatcher extends Thread {
 	Path ipcFile;
 	final AtomicBoolean stopRequested = new AtomicBoolean(false);
 	final ArrayList<Consumer<int[]>> listeners = new ArrayList<Consumer<int[]>>();
+	public int[] lastReadIndices = null;
+	
 	
 	public IPCFileWatcher(Path ipcfile) {
 		this.ipcFile = ipcfile;
 	}
 
 	public void run() {
-		try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
-			Path dir = ipcFile.getParent() != null ? ipcFile.getParent() : ipcFile.toAbsolutePath().getParent();
-			dir.register(watcher, StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_CREATE);
-
-			while (!stopRequested.get()) {
-				WatchKey key = watcher.poll(10, TimeUnit.MILLISECONDS); // returns null on timeout
-				if (key == null) {
-					Thread.yield();
-					continue; // re-check stopRequested
-				}
-				for (WatchEvent<?> event : key.pollEvents()) {
-					Path changed = (Path) event.context();
-					if (changed.equals(ipcFile.getFileName())) {
+		long lastMtime = -1;
+		while (!stopRequested.get()) {
+			if (ipcFile.toFile().exists()) {
+				long mtime = ipcFile.toFile().lastModified();
+				if (mtime != lastMtime) {
+					lastMtime = mtime;
+					try {
 						int[] indices = readIndices(ipcFile);
+						Arrays.sort(indices);
+						lastReadIndices = indices;
 						SwingUtilities.invokeLater(()->{notifyListeners(indices);});
+					} catch (IOException e) {
+						System.err.println("Failed to read IPC file: " + e.getMessage());
 					}
 				}
-				key.reset();
-				Thread.yield();
 			}
-		} catch(IOException e) {
-			e.printStackTrace();
-		} catch(InterruptedException e) {
-			// NOOP
+			try {
+				Thread.sleep(10);
+			} catch (InterruptedException e) {}
 		}
 	}
 	

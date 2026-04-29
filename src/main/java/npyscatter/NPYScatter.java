@@ -348,29 +348,6 @@ public class NPYScatter {
 		
 		// file based IPC stuff
 		if(ipcFilePath != null) {
-			selectionModel.addSelectionListener(new SimpleSelectionListener<Pair<Integer,Integer>>() {
-				
-				private ExecutorService exec = Executors.newSingleThreadExecutor();
-				AtomicReference<int[]> pendingWrite = new AtomicReference<>(null);
-				
-				@Override
-				public void selectionChanged(SortedSet<Pair<Integer, Integer>> selection) {
-					// flatten to 1D: extract the point index (second element) from each pair
-					int[] indices = selection.stream().mapToInt(pair -> order[pair.second]).toArray();
-					Arrays.sort(indices);
-					pendingWrite.set(indices);
-					exec.submit(() -> {
-						int[] to_write = pendingWrite.getAndSet(null);
-						if(to_write == null)
-							return; // another job already writing this selection, skip
-						try {
-							writeSelectionToFile(ipcFilePath, to_write);
-						} catch (IOException e) {
-							System.err.println("IPC write failed: " + e.getMessage());
-						}
-					});
-				}
-			});
 			IPCFileWatcher watcher = new IPCFileWatcher(ipcFilePath);
 			watcher.listeners.add((int[] selection) -> {
 				selectionModel.setSelection(
@@ -389,6 +366,33 @@ public class NPYScatter {
 				}
 			}
 			watcher.start();
+			
+			selectionModel.addSelectionListener(new SimpleSelectionListener<Pair<Integer,Integer>>() {
+				
+				private ExecutorService exec = Executors.newSingleThreadExecutor();
+				AtomicReference<int[]> pendingWrite = new AtomicReference<>(null);
+				
+				@Override
+				public void selectionChanged(SortedSet<Pair<Integer, Integer>> selection) {
+					// flatten to 1D: extract the point index (second element) from each pair
+					int[] indices = selection.stream().mapToInt(pair -> order[pair.second]).toArray();
+					Arrays.sort(indices);
+					if(Arrays.equals(indices, watcher.lastReadIndices)) {
+						return; // selection is the same as the last read selection, skip writing
+					}
+					pendingWrite.set(indices);
+					exec.submit(() -> {
+						int[] to_write = pendingWrite.getAndSet(null);
+						if(to_write == null)
+							return; // another job already writing this selection, skip
+						try {
+							writeSelectionToFile(ipcFilePath, to_write);
+						} catch (IOException e) {
+							System.err.println("IPC write failed: " + e.getMessage());
+						}
+					});
+				}
+			});
 		}
 		
 		JFrame frame = createJFrameWithBoilerPlate("NPYS - " + (coordsFile.length() > 30 ? "..." + coordsFile.substring(coordsFile.length()-(30-3)) : coordsFile));
