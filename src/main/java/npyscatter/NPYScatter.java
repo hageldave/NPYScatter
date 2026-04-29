@@ -10,6 +10,7 @@ import java.awt.event.KeyEvent;
 import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -506,7 +507,7 @@ public class NPYScatter {
 	}
 	
 	public static void write(Path file, int[] arr) throws IOException {
-	  Files.write(file, Arrays.stream(arr).mapToObj(i->""+i).collect(Collectors.toList()));
+		Files.write(file, Arrays.stream(arr).mapToObj(i -> "" + i).collect(Collectors.toList()));
 	}
 
 	public static void writeSelectionToFile(Path ipcFile, int[] indices) throws IOException {
@@ -515,13 +516,20 @@ public class NPYScatter {
 		Path dir = ipcFile.getParent() != null ? ipcFile.getParent() : ipcFile.toAbsolutePath().getParent();
 		Path tmp = Files.createTempFile(dir, "npyscatter_sel_", ".tmp");
 		try {
-		  if(ipcFile.endsWith(".npy"))
-			  NpyFile.write(tmp, indices);
+			if (ipcFile.endsWith(".npy"))
+				NpyFile.write(tmp, indices);
 			else
-			  write(tmp, indices);
-			Files.move(tmp, ipcFile,
-				StandardCopyOption.REPLACE_EXISTING,
-				StandardCopyOption.ATOMIC_MOVE);
+				write(tmp, indices);
+			boolean atomicmoveImpossible = false;
+			try {
+				Files.move(tmp, ipcFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			} catch (AtomicMoveNotSupportedException e) {
+				atomicmoveImpossible = true;
+			}
+			if(atomicmoveImpossible) {
+				// fallback to non-atomic move
+				Files.move(tmp, ipcFile, StandardCopyOption.REPLACE_EXISTING);
+			}
 		} finally {
 			// Clean up the temp file in case the move failed
 			Files.deleteIfExists(tmp);
