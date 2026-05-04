@@ -115,6 +115,14 @@ chmod a+x npyscatter
 mv npyscatter ~/.local/bin/ # or ~/bin/ or another directory included on $PATH that you can write to
 ```
 
+### Wayland vs X11
+OpenGL is powered by LWJGL in this application. 
+When your display server is Wayland, LWJGL switches to a different GL function provider by default. 
+When this happens, AWT/Swing cannot communicate with the OpenGL context. 
+To prevent this, the system property `org.lwjgl.opengl.contextAPI` has to be set to `native`. When launching the app, this property can be provided like this:
+```bash
+java -Dorg.lwjgl.opengl.contextAPI=native -jar target/npyscatter-0.0.1-SNAPSHOT-jar-with-dependencies.jar`
+```
 
 # Brushing & Linking
 NPYScatter implements file-based **inter process communication** (IPC) for brushing and linking.
