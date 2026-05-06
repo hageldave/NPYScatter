@@ -46,6 +46,7 @@ import hageldave.jplotter.canvas.BlankCanvasFallback;
 import hageldave.jplotter.canvas.FBOCanvas;
 import hageldave.jplotter.canvas.JPlotterCanvas;
 import hageldave.jplotter.charts.ScatterPlot;
+import hageldave.jplotter.charts.ScatterPlot.PointSetSelectionListener;
 import hageldave.jplotter.color.DefaultColorMap;
 import hageldave.jplotter.font.FontProvider;
 import hageldave.jplotter.interaction.SimpleSelectionModel;
@@ -326,7 +327,7 @@ public class NPYScatter {
 		}
 		SimpleSelectionModel<Pair<Integer, Integer>> selectionModel = new SimpleSelectionModel<Pair<Integer,Integer>>();
 		scatter.addRectangularPointSetSelector(new KeyMaskListener(KeyEvent.VK_SHIFT));
-		scatter.addPointSetSelectionListener(new ScatterPlot.PointSetSelectionListener() {
+		PointSetSelectionListener pssl = new ScatterPlot.PointSetSelectionListener() {
 			
 			@Override
 			public void onPointSetSelectionChanged(ArrayList<Pair<Integer, TreeSet<Integer>>> selectedPoints,
@@ -336,7 +337,9 @@ public class NPYScatter {
 				.collect(Collectors.toList());
 				selectionModel.setSelection(selection);
 			}
-		});
+		};
+		scatter.addPointSetSelectionListener(pssl);
+		//scatter.addPointSetSelectionOngoingListener(pssl);
 		scatter.addScrollZoom();
 		scatter.addPanning();
 		
@@ -349,8 +352,13 @@ public class NPYScatter {
 		
 		// file based IPC stuff
 		if(ipcFilePath != null) {
+			long[] last_write_time = {-1};
+			
 			IPCFileWatcher watcher = new IPCFileWatcher(ipcFilePath);
-			watcher.listeners.add((int[] selection) -> {
+			watcher.listeners.add((int[] selection, Long mtime) -> {
+				if(mtime <= last_write_time[0]) {
+					return; // this change was triggered by our own write, ignore
+				}
 				selectionModel.setSelection(
 						Arrays.stream(selection)
 						.map(j -> invOrder[j])
@@ -361,7 +369,7 @@ public class NPYScatter {
 			if(ipcFilePath.toFile().exists()) {
 				try {
 					int[] initialSelection = IPCFileWatcher.readIndices(ipcFilePath);
-					watcher.notifyListeners(initialSelection);
+					watcher.notifyListeners(initialSelection, 0);
 				} catch (IOException e) {
 					System.err.println("Error reading initial selection from IPC file ("+ e.getClass().getSimpleName() +"): " + e.getMessage());
 				}
@@ -383,14 +391,15 @@ public class NPYScatter {
 					}
 					pendingWrite.set(indices);
 					exec.submit(() -> {
-						int[] to_write = pendingWrite.getAndSet(null);
-						if(to_write == null)
-							return; // another job already writing this selection, skip
-						try {
-							writeSelectionToFile(ipcFilePath, to_write);
-						} catch (IOException e) {
-							System.err.println("IPC write failed: " + e.getMessage());
-						}
+							int[] to_write = pendingWrite.getAndSet(null);
+							if(to_write == null)
+								return; // another job already writing this selection, skip
+							try {
+								writeSelectionToFile(ipcFilePath, to_write);
+								last_write_time[0] = System.currentTimeMillis();
+							} catch (IOException e) {
+								System.err.println("IPC write failed: " + e.getMessage());
+							}
 					});
 				}
 			});

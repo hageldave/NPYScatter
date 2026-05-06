@@ -6,7 +6,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 import javax.swing.SwingUtilities;
 
@@ -16,26 +16,25 @@ public class IPCFileWatcher extends Thread {
 
 	Path ipcFile;
 	final AtomicBoolean stopRequested = new AtomicBoolean(false);
-	final ArrayList<Consumer<int[]>> listeners = new ArrayList<Consumer<int[]>>();
+	final ArrayList<BiConsumer<int[], Long>> listeners = new ArrayList<BiConsumer<int[],Long>>();
 	public int[] lastReadIndices = null;
-	
 	
 	public IPCFileWatcher(Path ipcfile) {
 		this.ipcFile = ipcfile;
 	}
 
 	public void run() {
-		long lastMtime = -1;
+		long lastModifTime = -1;
 		while (!stopRequested.get()) {
 			if (ipcFile.toFile().exists()) {
 				long mtime = ipcFile.toFile().lastModified();
-				if (mtime != lastMtime) {
-					lastMtime = mtime;
+				if (mtime > lastModifTime) {
+					lastModifTime = mtime;
 					try {
 						int[] indices = readIndices(ipcFile);
 						Arrays.sort(indices);
 						lastReadIndices = indices;
-						SwingUtilities.invokeLater(()->{notifyListeners(indices);});
+						SwingUtilities.invokeLater(()->{notifyListeners(indices, mtime);});
 					} catch (IOException e) {
 						System.err.println("Failed to read IPC file: " + e.getMessage());
 					}
@@ -55,9 +54,9 @@ public class IPCFileWatcher extends Thread {
 		Files.readAllLines(ipcFile).stream().mapToInt(Integer::parseInt).toArray();
 	}
 	
-	public void notifyListeners(int[] arr) {
+	public void notifyListeners(int[] arr, long mtime) {
 		for(var l: listeners) {
-			l.accept(arr);
+			l.accept(arr, mtime);
 		}
 	}
 	
