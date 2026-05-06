@@ -241,7 +241,7 @@ public class NPYScatter {
 		double[] cminmax = {0,1};
 		if(colorValues != null) {
 			cminmax[0] = Arrays.stream(colorValues).min().getAsDouble();
-			cminmax[1] = Arrays.stream(colorValues).min().getAsDouble();
+			cminmax[1] = Arrays.stream(colorValues).max().getAsDouble();
 		}
 		
 		
@@ -305,7 +305,7 @@ public class NPYScatter {
 					@Override
 					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
 						double v = (colorValues[order[pointIdx]]-cminmax[0])*div_by_range;
-						return v < 0 ? 0x33ff00ff : cmap.interpolate(v);
+						return v >= 0 ? cmap.interpolate(v) : 0x33ff00ff;
 					}
 				});
 			}
