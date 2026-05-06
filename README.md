@@ -56,7 +56,7 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
 ## CLI Options
 | Option | Description |
 |---|---|
-| <img width=500/> |  |
+| <img width=550/> |  |
 | `-h`, `--help` | Print help message and exit.|
 | `-x`, `--x-idx <N>` | Column index for X axis (default: 0).|
 | `-y`, `--y-idx <N>` | Column index for Y axis (default: 1).|
@@ -66,7 +66,7 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
 | `-s`, `--size <N,N>` | Size of the canvas <Width,Height>.|
 | `-v`, `--view <N,N,N,N>` | Coordinate view limits (view port) `<MinX,MaxX,MinY,MaxY>`. Make sure the argument is properly escaped so that negative values are not recognized as options (e.g. `'"-1,1,-1,1"'`). Defaults to bounding box of data if not provided.|
 | `-o`, `--output <path>` | Path to output file (*.png, *.svg, *.pdf). Non-interactive, export then exit.|
-| `-i`, `--ipc-file <path>` | Path to IPC file for selection exchange.|
+| `-i`, `--ipc-file <path>` | Path to IPC file for selection exchange. For best performance, choose a location on a RAM disk.|
 | `--color-values <path>` | Path to .npy file with values to be mapped to color.|
 | `--color-value-idx <N>` | Column index in color-values array (default: 0).|
 | `--cmap <name>` | Color map name (default: S_TURBO). Color map names are prefixed with **S**, **D**, **Q** indicating their type *sequential*, *diverging*, *qualitative (discrete)*. Based on the type and `color-values` array, different mapping strategies are applied.|
@@ -74,8 +74,9 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
 | `--cmap-show` | Shows available color maps in a GUI.|
 | `--jitter <N>` | Add jitter to scatter points. Value in pixels.|
 | `--draw-order <path/seed>` | Path to .npy file with point index ordering OR random seed to generate a permutation (long, '0x' prefix for hex otherwise decimal).|
-| `--no-axes <true|false>` | Hide coordinate system. View stretches over whole canvas.|
-| `--fallback <true|false>` | Use JPlotter fallback canvas. Use when OpenGL is not supported (e.g. MacOS).|
+| `--no-axes <true/false>` | Hide coordinate system. View stretches over whole canvas.|
+| `--fallback <true/false>` | Use JPlotter fallback canvas. Use when OpenGL is not supported (e.g. MacOS).|
+| `--cont-select <true/false>` | Continuously fire selection events while dragging selection shape. Default is 'false'. When used in conjunction with --ipc-file, it is recommended to locate the file on a RAM disk (e.g. /dev/shm on Linux) to reduce latency and wear on physical storage devices.|
 
 ### Color Mapping
 The available color maps are those shipped with the [JPlotter](https://github.com/hageldave/JPlotter/wiki/Color-Maps) libarary.
@@ -130,6 +131,10 @@ It can write the currently selected point indices to a `.npy` or text file whene
 Other applications can watch this file and react accordingly (e.g. for brushing & linking across views). 
 Infact, NPYScatter watches this file and updates the highlighted points on change accordingly. 
 This mechanism allows multiple instances of NPYScatter to be linked easily when they share the same selection file.
+
+> **Note:** It is recommended to choose a location on a RAM disk for the ipc file for best performance.  
+> In Linux, `/dev/shm` is a common location for tmpfs, but you should check via `df -h` to make sure.  
+> In Windows, you likely need 3rd party software to create a RAM disk (e.g. aim-toolkit).  
 
 ## Usage
 
