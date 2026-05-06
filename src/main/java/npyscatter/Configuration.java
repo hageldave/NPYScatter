@@ -71,7 +71,7 @@ public enum Configuration {
 			"N,N,N,N",
 			Configuration::parseDoubleArray, Configuration::require4doubles),
 	ipc_file("i",
-			"Path to IPC file for selection exchange.",
+			"Path to IPC file for selection exchange. For best performance, choose a location on a RAM disk.",
 			"path",
 			Configuration::parsePath, Configuration::isNotDirectory),
 	output("o",
@@ -85,7 +85,15 @@ public enum Configuration {
 	draw_order(
 			"Path to .npy file with draw order (integer array of point indices 0 to N-1 specifying the draw sequence) or random seed to generate a permutation.",
 			"path or seed",
-			Configuration::identity, Configuration::npyFileExistsOrIsSeed);
+			Configuration::identity, Configuration::npyFileExistsOrIsSeed),
+	cont_select(
+			"Continuously fire selection events while dragging selection shape. Default is 'false'. " +
+			"When used in conjunction with --ipc-file, it is recommended to locate the file on a RAM disk (e.g. /dev/shm on Linux) " +
+			"to reduce latency and wear on physical storage devices.",
+			"bool",
+			Boolean::parseBoolean, Configuration::allowAny,
+			false),
+	;
 	
 	String longOption;
 	String shortOption;

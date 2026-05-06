@@ -219,6 +219,7 @@ public class NPYScatter {
 		String xLabel = Configuration.x_label.getOrElse("Dim " + x_idx);
 		String yLabel = Configuration.y_label.getOrElse("Dim " + y_idx);
 		String drawOrderSpec = Configuration.draw_order.get();
+		boolean continuousSelections = Configuration.cont_select.get();
 
 		
 		NpyArray arr;
@@ -339,7 +340,9 @@ public class NPYScatter {
 			}
 		};
 		scatter.addPointSetSelectionListener(pssl);
-		//scatter.addPointSetSelectionOngoingListener(pssl);
+		if(continuousSelections) {
+			scatter.addPointSetSelectionOngoingListener(pssl);
+		}
 		scatter.addScrollZoom();
 		scatter.addPanning();
 		
