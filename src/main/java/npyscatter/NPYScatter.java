@@ -216,8 +216,8 @@ public class NPYScatter {
 		boolean noAxes = Configuration.no_axes.get();
 		Path outputPath = Configuration.output.get();
 		Double jitter = Configuration.jitter.get();
-		String xLabel = Configuration.x_label.getOrElse("Dim " + x_idx);
-		String yLabel = Configuration.y_label.getOrElse("Dim " + y_idx);
+		String xLabel = Configuration.x_label.getOrElse(x_idx > -1 ? "Dim " + x_idx : " ");
+		String yLabel = Configuration.y_label.getOrElse(y_idx > -1 ? "Dim " + y_idx : " ");
 		String drawOrderSpec = Configuration.draw_order.get();
 		boolean continuousSelections = Configuration.cont_select.get();
 
@@ -230,7 +230,10 @@ public class NPYScatter {
 			System.exit(1);
 			return;
 		}
-		NumpyArray data = new NumpyArray(arr);
+		NumpyArray data = arr.getShape().length > 1 ? 
+				new NumpyArray(arr) 
+				: 
+				new NumpyArray(NumpyArray.to_double(arr.getData()), new int[] {arr.getShape()[0], 1});
 		
 		final int[] order = loadOrGenerateDrawOrder(drawOrderSpec, data.shape[0]);
 		final int[] invOrder = new int[order.length];
@@ -246,13 +249,15 @@ public class NPYScatter {
 		
 		
 		ScatterPlot scatter = new ScatterPlot(!fallback);
+		double[][] row_data = IntStream.range(0, data.shape[0])
+			.map(i -> order[i])
+			.mapToObj(i->data.slice1D_(new double[data.shape[1]+1], i, null))
+			.map(ary->{ary[ary.length-1] = Math.random(); return ary;})
+			.toArray(double[][]::new);
 		scatter.getDataModel().addData(
-				IntStream.range(0, data.shape[0])
-				.map(i -> order[i])
-				.mapToObj(i->data.slice1D(i, null))
-				.toArray(double[][]::new), 
-				x_idx, 
-				y_idx, 
+				row_data, 
+				x_idx > -1 ? x_idx : data.shape[1], // use last column (randoms) if x=-1
+				y_idx > -1 ? y_idx : data.shape[1], // use last column (randoms) if y=-1
 				"");
 		
 		scatter.getCoordsys().setxAxisLabel(xLabel);

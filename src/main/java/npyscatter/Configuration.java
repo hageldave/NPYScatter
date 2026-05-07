@@ -13,14 +13,18 @@ import hageldave.jplotter.color.DefaultColorMap;
 
 public enum Configuration {
 	x_idx("x", 
-			"Column index for X axis (default: 0).",
+			"Column index for X axis (default: 0). " +
+			"Use -1 to use random values instead of data values " +
+			"(e.g. when you want to show a univaraite distribution of a single column on the y-axis).",
 			"N", 
-			Integer::parseInt, Configuration::requireNonNegative,
+			Integer::parseInt, Configuration::requireGEqMinus1,
 			0),
 	y_idx("y", 
-			"Column index for Y axis (default: 1).", 
+			"Column index for Y axis (default: 1). " +
+			"Use -1 to use random values instead of data values " +
+			"(e.g. when you want to show a univaraite distribution of a single column on the x-axis).", 
 			"N", 
-			Integer::parseInt, Configuration::requireNonNegative,
+			Integer::parseInt, Configuration::requireGEqMinus1,
 			1),
 	x_label(
 			"Label for X axis. Default is 'Dim N' where N is the x-idx.", 
@@ -200,6 +204,12 @@ public enum Configuration {
 	static void requireNonNegative(Object value) {
 		if(((Number)value).doubleValue() < 0) {
 			throw new IllegalArgumentException("Value must be >= 0.");
+		}
+	}
+	
+	static void requireGEqMinus1(Object value) {
+		if(((Number)value).doubleValue() < -1) {
+			throw new IllegalArgumentException("Value must be >= -1.");
 		}
 	}
 	

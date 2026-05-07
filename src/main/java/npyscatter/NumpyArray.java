@@ -30,7 +30,7 @@ public class NumpyArray {
 		return this.arr[idx(this.shape, coords)];
 	}
 	
-	public double[] slice1D(Integer...coords) {
+	public double[] slice1D_(double[] result, Integer...coords) {
 		int dim = -1;
 		int[] coord = new int[shape.length];
 		for(int i=0; i<coords.length; i++) {
@@ -40,13 +40,17 @@ public class NumpyArray {
 				coord[i] = coords[i].intValue();
 		}
 		int size = shape[dim];
-		double[] result = new double[size];
+		result = result != null ? result : new double[size];
 		coords[dim] = 0;
 		for(int i=0; i<size; i++) {
 			coord[dim] = i;
 			result[i] = get(coord);
 		}
 		return result;
+	}
+	
+	public double[] slice1D(Integer...coords) {
+		return slice1D_(null, coords);
 	}
 	
 	public static int idx(int[] shape, int... coords) {
