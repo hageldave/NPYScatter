@@ -461,11 +461,13 @@ public class NPYScatter {
 			// apply jitter by overriding the scatter plot's point positions with a random translation
 			double[][] curr_data = scatter.getDataModel().getDataChunk(0);
 			Random rand = new Random(0xC0FFEE);
+			int x_i = x_idx > -1 ? x_idx : data.shape[1];
+			int y_i = y_idx > -1 ? y_idx : data.shape[1];
 			for(int i=0; i<curr_data.length; i++) {
 				double angle = rand.nextDouble() * 2 * Math.PI;
 				double r = Math.sqrt(0.16 + 0.84 * rand.nextDouble());
-				curr_data[i][x_idx] += Math.cos(angle) * r * xjitter;
-				curr_data[i][y_idx] += Math.sin(angle) * r * yjitter;
+				curr_data[i][x_i] += Math.cos(angle) * r * xjitter;
+				curr_data[i][y_i] += Math.sin(angle) * r * yjitter;
 			}
 			scatter.getDataModel().setDataChunk(0, curr_data);
 		}
