@@ -27,12 +27,14 @@ npyscatter example_data/iris_data.npy -x 0 -y 2 --color-values example_data/iris
 `npyscatter [options] <point_coordinates.npy>` or  
 `npyscatter [options] <point_coordinates.npy> [options]`
 
+https://github.com/user-attachments/assets/579b418e-76ab-456c-aed0-133cc3c325f5
+
 ## Interactive Controls
 The coordinate system can be moved around and zoomed in and out, and a rectangular selection of points can be made (triggering highlighting).
 
 <table>
   <tr>
-    <td><img width="520" height="276" src="https://github.com/user-attachments/assets/ac85317a-282e-4a37-8d32-93a5f541fe36"></td>
+    <td><img width="500" height="275" alt="npyscatter_neww" src="https://github.com/user-attachments/assets/eb92c9cd-110d-484c-b297-bd201e81f4fa" /></td>
     <td>
       <table>
         <tr>
