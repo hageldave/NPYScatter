@@ -17,7 +17,7 @@ public enum Configuration {
 			"N", 
 			Integer::parseInt, Configuration::requireNonNegative,
 			0),
-	y_idx("x", 
+	y_idx("y", 
 			"Column index for Y axis (default: 1).", 
 			"N", 
 			Integer::parseInt, Configuration::requireNonNegative,
