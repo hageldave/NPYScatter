@@ -60,8 +60,8 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
 |---|---|
 | <img width=550/> |  |
 | `-h`, `--help` | Print help message and exit.|
-| `-x`, `--x-idx <N>` | Column index for X axis (default: 0). Use -1 to use random values instead of data values (e.g. to show a univaraite distribution of a single column on the y-axis).|
-| `-y`, `--y-idx <N>` | Column index for Y axis (default: 1). Use -1 to use random values instead of data values (e.g. to show a univaraite distribution of a single column on the x-axis).|
+| `-x`, `--x-idx <N>` | Column index for X axis (default: 0). Use -1 to use random values instead of data values (e.g. to show a univariate distribution of a single column on the y-axis).|
+| `-y`, `--y-idx <N>` | Column index for Y axis (default: 1). Use -1 to use random values instead of data values (e.g. to show a univariate distribution of a single column on the x-axis).|
 | `--x-label <name>` | Label for X axis. Default is 'Dim N' where N is the x-idx.|
 | `--y-label <name>` | Label for Y axis. Default is 'Dim N' where N is the y-idx.|
 | `-p`, `--point-size <N>` | Point glyph scaling factor.|
