@@ -15,14 +15,14 @@ public enum Configuration {
 	x_idx("x", 
 			"Column index for X axis (default: 0). " +
 			"Use -1 to use random values instead of data values " +
-			"(e.g. when you want to show a univaraite distribution of a single column on the y-axis).",
+			"(e.g. when you want to show a univariate distribution of a single column on the y-axis).",
 			"N", 
 			Integer::parseInt, Configuration::requireGEqMinus1,
 			0),
 	y_idx("y", 
 			"Column index for Y axis (default: 1). " +
 			"Use -1 to use random values instead of data values " +
-			"(e.g. when you want to show a univaraite distribution of a single column on the x-axis).", 
+			"(e.g. when you want to show a univariate distribution of a single column on the x-axis).", 
 			"N", 
 			Integer::parseInt, Configuration::requireGEqMinus1,
 			1),
