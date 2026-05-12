@@ -97,7 +97,7 @@ The available color maps are those shipped with the [JPlotter](https://github.co
 
 NPYScatter is a Java application which is built with Maven. To build it, use
 ```
-mvn clean install
+mvn clean package
 ```
 which will compile the code and assemble a runnable .jar file in a newly created subdirectory `target/`.
 The application can then be run via `java -jar target/npyscatter-0.0.1-SNAPSHOT-jar-with-dependencies.jar`.
