@@ -8,22 +8,23 @@ import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Rectangle2D;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
-import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.Scanner;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -57,6 +58,7 @@ import hageldave.jplotter.renderers.CompleteRenderer;
 import hageldave.jplotter.renderers.Renderer;
 import hageldave.jplotter.util.ExportUtil;
 import hageldave.jplotter.util.Pair;
+import vizipc.comm.FileClient;
 
 public class NPYScatter {
 	
@@ -360,57 +362,33 @@ public class NPYScatter {
 		
 		// file based IPC stuff
 		if(ipcFilePath != null) {
-			long[] last_write_time = {-1};
-			
-			IPCFileWatcher watcher = new IPCFileWatcher(ipcFilePath);
-			watcher.listeners.add((int[] selection, Long mtime) -> {
-				if(mtime <= last_write_time[0]) {
-					return; // this change was triggered by our own write, ignore
-				}
-				selectionModel.setSelection(
-						Arrays.stream(selection)
-						.map(j -> invOrder[j])
-						.mapToObj(i->Pair.of(0, i))
-						.collect(Collectors.toList())
-				);
-			});
-			if(ipcFilePath.toFile().exists()) {
-				try {
-					int[] initialSelection = IPCFileWatcher.readIndices(ipcFilePath);
-					watcher.notifyListeners(initialSelection, 0);
-				} catch (IOException e) {
-					System.err.println("Error reading initial selection from IPC file ("+ e.getClass().getSimpleName() +"): " + e.getMessage());
-				}
-			}
-			watcher.start();
+			FileClient<int[]> selectionClient = ipcFilePath.toString().endsWith(".npy") ? 
+						createNPYFormatFileClient(ipcFilePath) 
+						: 
+						createPlaintextFileClient(ipcFilePath);
 			
 			selectionModel.addSelectionListener(new SimpleSelectionListener<Pair<Integer,Integer>>() {
-				
-				private ExecutorService exec = Executors.newSingleThreadExecutor();
-				AtomicReference<int[]> pendingWrite = new AtomicReference<>(null);
-				
 				@Override
 				public void selectionChanged(SortedSet<Pair<Integer, Integer>> selection) {
-					// flatten to 1D: extract the point index (second element) from each pair
 					int[] indices = selection.stream().mapToInt(pair -> order[pair.second]).toArray();
 					Arrays.sort(indices);
-					if(Arrays.equals(indices, watcher.lastReadIndices)) {
-						return; // selection is the same as the last read selection, skip writing
-					}
-					pendingWrite.set(indices);
-					exec.submit(() -> {
-							int[] to_write = pendingWrite.getAndSet(null);
-							if(to_write == null)
-								return; // another job already writing this selection, skip
-							try {
-								writeSelectionToFile(ipcFilePath, to_write);
-								last_write_time[0] = System.currentTimeMillis();
-							} catch (IOException e) {
-								System.err.println("IPC write failed: " + e.getMessage());
-							}
-					});
+					selectionClient.setValue(indices, false);
 				}
 			});
+			
+			selectionClient.addListener(new Consumer<int[]>() {
+				@Override
+				public void accept(int[] selection) {
+					selectionModel.setSelection(
+							Arrays.stream(selection)
+							.map(j -> invOrder[j])
+							.mapToObj(i->Pair.of(0, i))
+							.collect(Collectors.toList())
+					);
+				}
+			});
+			
+			selectionClient.startWatching();
 		}
 		
 		JFrame frame = createJFrameWithBoilerPlate("NPYS - " + (coordsFile.length() > 30 ? "..." + coordsFile.substring(coordsFile.length()-(30-3)) : coordsFile));
@@ -498,6 +476,70 @@ public class NPYScatter {
 		}
 	}
 	
+	private static FileClient<int[]> createPlaintextFileClient(Path ipcFilePath) {
+		return new FileClient<>(
+				ipcFilePath,
+				new Function<byte[], int[]>() {
+					@Override
+					public int[] apply(byte[] bytes) {
+						try (
+								ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+								Scanner sc = new Scanner(bais, StandardCharsets.US_ASCII);
+						){
+							return sc.tokens().mapToInt(Integer::parseInt).toArray();
+						} catch (Exception e) {
+							throw new RuntimeException(e);
+						}
+					}
+				},
+				new Function<int[], byte[]>() {
+					@Override
+					public byte[] apply(int[] ints) {
+						try(
+								ByteArrayOutputStream baos = new ByteArrayOutputStream();
+								PrintWriter pw = new PrintWriter(baos, false, StandardCharsets.US_ASCII);
+						){
+							Arrays.stream(ints).forEach(pw::println);
+							pw.flush();
+							return baos.toByteArray();
+						} catch (IOException e) {
+							throw new RuntimeException(e);
+						}
+					}
+				}
+		);
+	}
+
+
+	private static FileClient<int[]> createNPYFormatFileClient(Path ipcFilePath) {
+		return new FileClient<>(
+				ipcFilePath,
+				new Function<byte[], int[]>() {
+					@Override
+					public int[] apply(byte[] bytes) {
+						try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes)){
+							NpyArray arr = NpyFile.read(bais, 1024);
+							return arr.asIntArray();
+						} catch (Exception e) {
+							throw new RuntimeException(e);
+						}
+					}
+				},
+				new Function<int[], byte[]>() {
+					@Override
+					public byte[] apply(int[] ints) {
+						try(ByteArrayOutputStream baos = new ByteArrayOutputStream()){
+							NpyFile.write(baos, ints);
+							return baos.toByteArray();
+						} catch (IOException e) {
+							throw new RuntimeException(e);
+						}
+					}
+				}
+		);
+	}
+
+
 	static void printHelp(HelpFormatter formatter, Options options, boolean example) {
 		try {
 			formatter.printHelp("npyscatter <coords.npy> [options]","", options, "", example);
@@ -525,43 +567,6 @@ public class NPYScatter {
 				.toArray(int[][]::new);
 	}
 	
-	public static void write(Path file, int[] arr) throws IOException {
-		Files.write(file, Arrays.stream(arr).mapToObj(i -> "" + i).collect(Collectors.toList()));
-	}
-
-	public static void writeSelectionToFile(Path ipcFile, int[] indices) throws IOException {
-		// Create a uniquely named temp file in the same directory as the target,
-		// so that the subsequent atomic move stays on the same filesystem.
-		Path dir = ipcFile.getParent() != null ? ipcFile.getParent() : ipcFile.toAbsolutePath().getParent();
-		Path tmp = Files.createTempFile(dir, "npyscatter_sel_", ".tmp");
-		try {
-			if (ipcFile.endsWith(".npy"))
-				NpyFile.write(tmp, indices);
-			else
-				write(tmp, indices);
-			boolean atomicmoveImpossible = false;
-			try {
-				Files.move(tmp, ipcFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-			} catch (AtomicMoveNotSupportedException e) {
-				atomicmoveImpossible = true;
-			}
-			boolean moveImpossible = false;
-			if(atomicmoveImpossible) {
-				// fallback to non-atomic move
-				try {
-					Files.move(tmp, ipcFile, StandardCopyOption.REPLACE_EXISTING);
-				} catch (IOException e) {
-					moveImpossible = true;
-				}
-			}
-			if (moveImpossible) {
-				Files.copy(tmp, ipcFile, StandardCopyOption.REPLACE_EXISTING);
-			}
-		} finally {
-			// Clean up the temp file in case the move failed
-			Files.deleteIfExists(tmp);
-		}
-	}
 	
 	/* Utility method that adds throws declaration cause NpyFile is kotlin and does not specify it correctly */
 	public static NpyArray readNpyArray(Path file) throws IOException {

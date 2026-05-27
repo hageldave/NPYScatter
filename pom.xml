@@ -23,9 +23,9 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>org.jetbrains.bio</groupId>
+			<groupId>com.github.hageldave</groupId>
 			<artifactId>npy</artifactId>
-			<version>0.3.5</version>
+			<version>0.3.8</version>
 		</dependency>
 		<dependency>
 			<groupId>com.github.hageldave.jplotter</groupId>
@@ -37,6 +37,11 @@
 			<artifactId>commons-cli</artifactId>
 			<version>1.11.0</version>
 			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.github.hageldave</groupId>
+			<artifactId>vizipc-client</artifactId>
+			<version>0.0.1</version>
 		</dependency>
 	</dependencies>
 	<build>
