@@ -18,12 +18,14 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -367,27 +369,44 @@ public class NPYScatter {
 						: 
 						createPlaintextFileClient(ipcFilePath);
 			
-			selectionModel.addSelectionListener(new SimpleSelectionListener<Pair<Integer,Integer>>() {
+			class FileSelectionSync implements BiConsumer<int[], Long>, SimpleSelectionListener<Pair<Integer,Integer>> {
+				
+				Collection<Pair<Integer,Integer>> selectionFromFile;
+				AtomicReference<List<Pair<Integer, Integer>>> toSet = new AtomicReference<>();
+				
 				@Override
 				public void selectionChanged(SortedSet<Pair<Integer, Integer>> selection) {
+					if(selectionFromFile != null && sameSet(selectionFromFile, selection)) {
+						// this is coming straight from accept(...), avoid writing back to file what we just loaded
+						selectionFromFile = null; // set back to null
+						return;
+					}
 					int[] indices = selection.stream().mapToInt(pair -> order[pair.second]).toArray();
 					Arrays.sort(indices);
-					selectionClient.setValue(indices, false);
+					selectionClient.setValue(indices);
 				}
-			});
-			
-			selectionClient.addListener(new Consumer<int[]>() {
+
 				@Override
-				public void accept(int[] selection) {
-					selectionModel.setSelection(
-							Arrays.stream(selection)
+				public void accept(int[] selection, Long eventTimestamp) {
+					List<Pair<Integer, Integer>> sel = Arrays.stream(selection)
 							.map(j -> invOrder[j])
 							.mapToObj(i->Pair.of(0, i))
-							.collect(Collectors.toList())
-					);
+							.collect(Collectors.toList());
+						toSet.set(sel);
+						try {
+							SwingUtilities.invokeLater(()->{
+								var selToSet = toSet.getAndSet(null);
+								selectionFromFile = selToSet;
+								if(selToSet != null)
+									selectionModel.setSelection(selToSet);
+							});
+						} catch(Exception e) {}
 				}
-			});
+			}
 			
+			FileSelectionSync sync = new FileSelectionSync();
+			selectionModel.addSelectionListener(sync);
+			selectionClient.addListener(sync);
 			selectionClient.startWatching();
 		}
 		
@@ -579,6 +598,16 @@ public class NPYScatter {
 				.sorted((i, j) -> Integer.compare(arr[i], arr[j]))
 				.mapToInt(Integer::intValue)
 				.toArray();
+	}
+	
+	private static <T> boolean sameSet(Collection<T> c1, Collection<T> c2) {
+		if(c1.size() != c2.size()) 
+			return false;
+		for(T item : c1) {
+			if(!c2.contains(item))
+				return false;
+		}
+		return true;
 	}
 
 }
