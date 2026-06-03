@@ -47,7 +47,7 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
           <td>Zooming</td>
           <td><code>ALT</code> + <code>SCROLL</code></td>
         </tr><tr>
-          <td>Selecting (rectangular)</td>
+          <td>Selecting (rect)</td>
           <td><code>SHIFT</code> + <code>LMB</code></td>
         </tr><tr>
           <td>Selecting (lasso)</td>
