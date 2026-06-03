@@ -336,7 +336,6 @@ public class NPYScatter {
 			}
 		}
 		SimpleSelectionModel<Pair<Integer, Integer>> selectionModel = new SimpleSelectionModel<Pair<Integer,Integer>>();
-		scatter.addRectangularPointSetSelector(new KeyMaskListener(KeyEvent.VK_SHIFT));
 		PointSetSelectionListener pssl = new ScatterPlot.PointSetSelectionListener() {
 			
 			@Override
@@ -352,6 +351,8 @@ public class NPYScatter {
 		if(continuousSelections) {
 			scatter.addPointSetSelectionOngoingListener(pssl);
 		}
+		scatter.addRectangularPointSetSelector(new KeyMaskListener(KeyEvent.VK_SHIFT));
+		scatter.addLassoPointSetSelector(new KeyMaskListener(KeyEvent.VK_CONTROL, KeyEvent.VK_SHIFT));
 		scatter.addScrollZoom();
 		scatter.addPanning();
 		
