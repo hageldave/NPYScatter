@@ -43,6 +43,7 @@ import org.jetbrains.bio.npy.NpyArray;
 import org.jetbrains.bio.npy.NpyFile;
 
 import hageldave.imagingkit.core.Img;
+import hageldave.imagingkit.core.Pixel;
 import hageldave.imagingkit.core.util.ImageFrame;
 import hageldave.jplotter.canvas.BlankCanvas;
 import hageldave.jplotter.canvas.BlankCanvasFallback;
@@ -50,6 +51,7 @@ import hageldave.jplotter.canvas.FBOCanvas;
 import hageldave.jplotter.canvas.JPlotterCanvas;
 import hageldave.jplotter.charts.ScatterPlot;
 import hageldave.jplotter.charts.ScatterPlot.PointSetSelectionListener;
+import hageldave.jplotter.charts.ScatterPlot.ScatterPlotVisualMapping;
 import hageldave.jplotter.color.DefaultColorMap;
 import hageldave.jplotter.font.FontProvider;
 import hageldave.jplotter.interaction.SimpleSelectionModel;
@@ -224,7 +226,9 @@ public class NPYScatter {
 		String yLabel = Configuration.y_label.getOrElse(y_idx > -1 ? "Dim " + y_idx : " ");
 		String drawOrderSpec = Configuration.draw_order.get();
 		boolean continuousSelections = Configuration.cont_select.get();
-
+		// from environment variables
+		int defaultColor = parseEnvVarOrDefault("NPYSCATTER_DEFAULT_COLOR", s->Integer.parseUnsignedInt(s, 16), 0xff_66c2a5);
+		int invalidColor = parseEnvVarOrDefault("NPYSCATTER_INVALID_COLOR", s->Integer.parseUnsignedInt(s, 16), 0x33_ff00ff);
 		
 		NpyArray arr;
 		try {
@@ -267,7 +271,19 @@ public class NPYScatter {
 		scatter.getCoordsys().setxAxisLabel(xLabel);
 		scatter.getCoordsys().setyAxisLabel(yLabel);
 		
+		
+		// set default color via visual mapping
+		scatter.setVisualMapping(new ScatterPlot.ScatterPlotVisualMapping() {
+			int sanitizedDefaultColor = Pixel.a(defaultColor) == 0 ? (defaultColor|0xff000000) : defaultColor; // ensure alpha is nonzero
+			@Override
+			public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
+				return sanitizedDefaultColor;
+			}
+		});
+		
 		if(colorValues != null){
+			int sanitizedInvalidColor = Pixel.a(invalidColor) == 0 ? (invalidColor|0xff000000) : invalidColor; // ensure alpha is nonzero
+			
 			// check if color values are integer valued and colormap is discrete
 			boolean integerValued = Arrays.stream(colorValues).allMatch(v -> v == Math.floor(v));
 			boolean disctretecmap = cmap.name().startsWith("Q");
@@ -276,7 +292,7 @@ public class NPYScatter {
 					@Override
 					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
 						double v = colorValues[order[pointIdx]];
-						return v < 0 ? 0x33ff00ff : cmap.getColor(((int)v)%cmap.numColors());
+						return v < 0 ? sanitizedInvalidColor : cmap.getColor(((int)v)%cmap.numColors());
 					}
 				});
 			} else if(disctretecmap && !integerValued) {
@@ -314,7 +330,7 @@ public class NPYScatter {
 					@Override
 					public int getColorForDataPoint(int chunkIdx, String chunkDescr, double[][] dataChunk, int pointIdx) {
 						double v = (colorValues[order[pointIdx]]-cminmax[0])*div_by_range;
-						return v >= 0 ? cmap.interpolate(v) : 0x33ff00ff;
+						return v >= 0 ? cmap.interpolate(v) : sanitizedInvalidColor;
 					}
 				});
 			}
@@ -609,6 +625,19 @@ public class NPYScatter {
 				return false;
 		}
 		return true;
+	}
+	
+	private static <T> T parseEnvVarOrDefault(String envVarName, Function<String, T> parser, T defaultValue) {
+		String envVar = System.getenv(envVarName);
+		if(envVar != null) {
+			try {
+				return parser.apply(envVar);
+			} catch(Exception e) {
+				System.err.println("Error parsing environment variable " + envVarName + " = " + envVar + " : " + e.getMessage());
+				return defaultValue;
+			}
+		}
+		return defaultValue;
 	}
 
 }
