@@ -41,16 +41,16 @@ The coordinate system can be moved around and zoomed in and out, and a rectangul
           <td><b>Action</b></td>
           <td><b>Key</b></td>
         </tr><tr>
-          <td>Panning</td>
+          <td>Pan</td>
           <td><code>CTRL</code> + <code>LMB</code></td>
         </tr><tr>
-          <td>Zooming</td>
+          <td>Zoom</td>
           <td><code>ALT</code> + <code>SCROLL</code></td>
         </tr><tr>
-          <td>Selecting (rect)</td>
+          <td>Select (rect)</td>
           <td><code>SHIFT</code> + <code>LMB</code></td>
         </tr><tr>
-          <td>Selecting (lasso)</td>
+          <td>Select (lasso)</td>
           <td><code>SHIFT</code> + <code>CTRL</code> + <code>LMB</code></td>
         </tr>
       </table>
