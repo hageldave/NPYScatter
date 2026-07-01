@@ -8,9 +8,11 @@ import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Rectangle2D;
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
@@ -51,7 +53,6 @@ import hageldave.jplotter.canvas.FBOCanvas;
 import hageldave.jplotter.canvas.JPlotterCanvas;
 import hageldave.jplotter.charts.ScatterPlot;
 import hageldave.jplotter.charts.ScatterPlot.PointSetSelectionListener;
-import hageldave.jplotter.charts.ScatterPlot.ScatterPlotVisualMapping;
 import hageldave.jplotter.color.DefaultColorMap;
 import hageldave.jplotter.font.FontProvider;
 import hageldave.jplotter.interaction.SimpleSelectionModel;
@@ -232,7 +233,12 @@ public class NPYScatter {
 		
 		NpyArray arr;
 		try {
-			arr = readNpyArray(FileSystems.getDefault().getPath(coordsFile));
+			if(coordsFile.equals("-")) {
+				// read from stdin
+				arr = readNpyArray(System.in);
+			} else {
+				arr = readNpyArray(FileSystems.getDefault().getPath(coordsFile));
+			}
 		} catch (IOException e) {
 			System.err.println("Error reading coordinates file (" + e.getClass().getSimpleName() + "): " + e.getMessage());
 			System.exit(1);
@@ -607,6 +613,13 @@ public class NPYScatter {
 	/* Utility method that adds throws declaration cause NpyFile is kotlin and does not specify it correctly */
 	public static NpyArray readNpyArray(Path file) throws IOException {
 		return NpyFile.read(file, 1024);
+	}
+	
+	public static NpyArray readNpyArray(InputStream is) throws IOException {
+		try(BufferedInputStream bis = new BufferedInputStream(is))
+		{
+			return NpyFile.read(bis, 1024);
+		}
 	}
 	
 	public static int[] argsort(int[] arr) {
