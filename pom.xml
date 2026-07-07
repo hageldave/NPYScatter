@@ -25,7 +25,7 @@
 		<dependency>
 			<groupId>com.github.hageldave</groupId>
 			<artifactId>npy</artifactId>
-			<version>0.3.8</version>
+			<version>0.3.9</version>
 		</dependency>
 		<dependency>
 			<groupId>com.github.hageldave.jplotter</groupId>
